@@ -46,7 +46,6 @@ ENRICHMENT_FIELD_OPTIONS = {
     "possible_business_suggestion": "Business suggestion",
 }
 SOURCE_TYPE_OPTIONS = ["webpages", "pdfs"]
-BUCKET_OPTIONS = ["main", "weak"]
 DIRECTION_OPTIONS = ["opportunity", "neutral", "risk"]
 CONFIDENCE_OPTIONS = ["high", "medium", "low"]
 SIGNAL_STRENGTH_OPTIONS = ["strong", "medium", ""]
@@ -211,11 +210,25 @@ def render_filter_controls(
     scope_companies: list[str],
     scope_categories: list[str],
 ) -> RetrievalFilters:
-    st.subheader("Metadata Filters")
+    st.subheader("LLM1 Result Filters")
     include_secondary = st.checkbox(
-        "Match selected categories against secondary categories",
-        value=False,
+        "Include secondary categories",
+        value=True,
     )
+    signal_strengths = st.multiselect(
+        "Signal strength",
+        SIGNAL_STRENGTH_OPTIONS,
+        default=["strong", "medium"],
+        format_func=lambda value: value or "noise",
+    )
+    directions = st.multiselect("Direction", DIRECTION_OPTIONS, default=[])
+    confidences = st.multiselect("Confidence", CONFIDENCE_OPTIONS, default=[])
+    secondary_categories = st.text_input(
+        "Additional secondary category filter",
+        placeholder="Comma-separated secondary categories",
+    )
+
+    st.subheader("Metadata Filters")
     source_types = st.multiselect(
         "Source types",
         SOURCE_TYPE_OPTIONS,
@@ -227,28 +240,12 @@ def render_filter_controls(
         placeholder="Leave empty for all page types",
     )
 
-    st.subheader("LLM1 Result Filters")
-    buckets = st.multiselect("Buckets", BUCKET_OPTIONS, default=BUCKET_OPTIONS)
-    directions = st.multiselect("Direction", DIRECTION_OPTIONS, default=[])
-    confidences = st.multiselect("Confidence", CONFIDENCE_OPTIONS, default=[])
-    signal_strengths = st.multiselect(
-        "Signal strength",
-        SIGNAL_STRENGTH_OPTIONS,
-        default=[],
-        format_func=lambda value: value or "weak",
-    )
-    secondary_categories = st.text_input(
-        "Additional secondary category filter",
-        placeholder="Comma-separated secondary categories",
-    )
-
     return RetrievalFilters(
         companies=scope_companies or None,
         categories=scope_categories or None,
         include_secondary_categories=include_secondary,
         secondary_categories=_csv(secondary_categories),
         page_type=page_types or None,
-        buckets=buckets or None,
         signal_strength=signal_strengths or None,
         direction=directions or None,
         confidence=confidences or None,
