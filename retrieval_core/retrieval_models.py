@@ -25,7 +25,6 @@ class RetrievalFilters:
     secondary_categories: list[str] | None = None
     page_type: str | list[str] | None = None
     buckets: list[str] | None = field(default_factory=lambda: list(DEFAULT_BUCKETS))
-    is_relevant: bool | None = True
     signal_strength: str | list[str] | None = None
     direction: str | list[str] | None = None
     confidence: str | list[str] | None = None

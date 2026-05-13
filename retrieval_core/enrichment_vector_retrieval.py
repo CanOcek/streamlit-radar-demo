@@ -42,7 +42,6 @@ def search_enrichment_embeddings(
         se.id AS enrichment_id,
         NULL::bigint AS noise_enrichment_id,
         se.bucket,
-        se.is_relevant,
         se.category,
         se.secondary_categories,
         se.signal_strength,
@@ -111,7 +110,6 @@ def search_enrichment_embeddings(
         AND (%(secondary_categories)s IS NULL OR se.secondary_categories && %(secondary_categories)s)
         AND (%(page_type)s IS NULL OR COALESCE(w.page_type, 'pdf_segment') = ANY(%(page_type)s))
         AND (%(buckets)s IS NULL OR se.bucket = ANY(%(buckets)s))
-        AND (%(is_relevant)s IS NULL OR se.is_relevant = %(is_relevant)s)
         AND (%(signal_strength)s IS NULL OR se.signal_strength = ANY(%(signal_strength)s))
         AND (%(direction)s IS NULL OR se.direction = ANY(%(direction)s))
         AND (%(confidence)s IS NULL OR se.confidence = ANY(%(confidence)s))
@@ -131,7 +129,6 @@ def search_enrichment_embeddings(
         COALESCE(w.raw_url, p.pdf_link),
         se.id,
         se.bucket,
-        se.is_relevant,
         se.category,
         se.secondary_categories,
         se.signal_strength,
@@ -172,7 +169,6 @@ def _filter_params(filters: RetrievalFilters) -> dict[str, Any]:
         "secondary_categories": list_or_none(filters.secondary_categories),
         "page_type": list_or_none(filters.page_type),
         "buckets": list_or_none(filters.buckets),
-        "is_relevant": filters.is_relevant,
         "signal_strength": list_or_none(filters.signal_strength),
         "direction": list_or_none(filters.direction),
         "confidence": list_or_none(filters.confidence),

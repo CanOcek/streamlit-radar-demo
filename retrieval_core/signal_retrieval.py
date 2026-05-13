@@ -39,7 +39,6 @@ def fetch_enrichment_signals(
         se.id AS enrichment_id,
         NULL::bigint AS noise_enrichment_id,
         se.bucket,
-        se.is_relevant,
         se.category,
         se.secondary_categories,
         se.signal_strength,
@@ -97,14 +96,14 @@ def fetch_enrichment_signals(
         AND (%(secondary_categories)s IS NULL OR se.secondary_categories && %(secondary_categories)s)
         AND (%(page_type)s IS NULL OR COALESCE(w.page_type, 'pdf_segment') = ANY(%(page_type)s))
         AND (%(buckets)s IS NULL OR se.bucket = ANY(%(buckets)s))
-        AND (%(is_relevant)s IS NULL OR se.is_relevant = %(is_relevant)s)
         AND (%(signal_strength)s IS NULL OR se.signal_strength = ANY(%(signal_strength)s))
         AND (%(direction)s IS NULL OR se.direction = ANY(%(direction)s))
         AND (%(confidence)s IS NULL OR se.confidence = ANY(%(confidence)s))
 
     ORDER BY
-        sort_timestamp DESC NULLS LAST,
         CASE se.bucket WHEN 'main' THEN 0 WHEN 'weak' THEN 1 ELSE 2 END,
+        CASE se.confidence WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END,
+        sort_timestamp DESC NULLS LAST,
         se.created_at DESC,
         se.id DESC
     LIMIT %(limit)s;
@@ -128,7 +127,6 @@ def _filter_params(filters: RetrievalFilters) -> dict[str, Any]:
         "secondary_categories": list_or_none(filters.secondary_categories),
         "page_type": list_or_none(filters.page_type),
         "buckets": list_or_none(filters.buckets),
-        "is_relevant": filters.is_relevant,
         "signal_strength": list_or_none(filters.signal_strength),
         "direction": list_or_none(filters.direction),
         "confidence": list_or_none(filters.confidence),

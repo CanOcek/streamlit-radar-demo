@@ -97,7 +97,6 @@ def _noise_filters(filters: RetrievalFilters) -> RetrievalFilters:
         page_type=filters.page_type,
         source_types=filters.source_types,
         buckets=None,
-        is_relevant=None,
     )
 
 def _maybe_hydrate(

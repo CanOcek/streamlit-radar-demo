@@ -58,7 +58,6 @@ def search_chunk_embeddings(
             se.id AS enrichment_id,
             sen.id AS noise_enrichment_id,
             CASE WHEN %(enrichment_mode)s = 'normal' THEN se.bucket ELSE 'noise' END AS bucket,
-            CASE WHEN %(enrichment_mode)s = 'normal' THEN se.is_relevant ELSE NULL END AS is_relevant,
             CASE WHEN %(enrichment_mode)s = 'normal' THEN se.category ELSE NULL END AS category,
             CASE WHEN %(enrichment_mode)s = 'normal' THEN se.secondary_categories ELSE NULL END AS secondary_categories,
             CASE WHEN %(enrichment_mode)s = 'normal' THEN se.signal_strength ELSE NULL END AS signal_strength,
@@ -177,11 +176,6 @@ def search_chunk_embeddings(
             )
             AND (
                 %(enrichment_mode)s <> 'normal'
-                OR %(is_relevant)s IS NULL
-                OR se.is_relevant = %(is_relevant)s
-            )
-            AND (
-                %(enrichment_mode)s <> 'normal'
                 OR %(signal_strength)s IS NULL
                 OR se.signal_strength = ANY(%(signal_strength)s)
             )
@@ -224,7 +218,6 @@ def search_chunk_embeddings(
         enrichment_id,
         noise_enrichment_id,
         bucket,
-        is_relevant,
         category,
         secondary_categories,
         signal_strength,
@@ -274,7 +267,6 @@ def _filter_params(filters: RetrievalFilters) -> dict[str, Any]:
         "secondary_categories": list_or_none(filters.secondary_categories),
         "page_type": list_or_none(filters.page_type),
         "buckets": list_or_none(filters.buckets),
-        "is_relevant": filters.is_relevant,
         "signal_strength": list_or_none(filters.signal_strength),
         "direction": list_or_none(filters.direction),
         "confidence": list_or_none(filters.confidence),

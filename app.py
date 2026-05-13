@@ -229,11 +229,6 @@ def render_filter_controls(
 
     st.subheader("LLM1 Result Filters")
     buckets = st.multiselect("Buckets", BUCKET_OPTIONS, default=BUCKET_OPTIONS)
-    relevance_choice = st.selectbox(
-        "Relevance",
-        ["Relevant only", "Relevant and non-relevant", "Non-relevant only"],
-        index=0,
-    )
     directions = st.multiselect("Direction", DIRECTION_OPTIONS, default=[])
     confidences = st.multiselect("Confidence", CONFIDENCE_OPTIONS, default=[])
     signal_strengths = st.multiselect(
@@ -254,7 +249,6 @@ def render_filter_controls(
         secondary_categories=_csv(secondary_categories),
         page_type=page_types or None,
         buckets=buckets or None,
-        is_relevant=_relevance_value(relevance_choice),
         signal_strength=signal_strengths or None,
         direction=directions or None,
         confidence=confidences or None,
@@ -800,14 +794,6 @@ def _write_text_block(title: str, value: str | None) -> None:
 def _csv(value: str) -> list[str] | None:
     values = [item.strip() for item in value.split(",") if item.strip()]
     return values or None
-
-
-def _relevance_value(choice: str) -> bool | None:
-    if choice == "Relevant only":
-        return True
-    if choice == "Non-relevant only":
-        return False
-    return None
 
 
 if __name__ == "__main__":

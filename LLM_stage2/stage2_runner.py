@@ -118,7 +118,6 @@ def run_stage2(
         categories=[category],
         include_secondary_categories=include_secondary,
         buckets=buckets,
-        is_relevant=True,
     )
     result, _rows = run_stage2_from_retrieval(
         filters=filters,
