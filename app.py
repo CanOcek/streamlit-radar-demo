@@ -11,6 +11,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+ASSETS_DIR = PROJECT_ROOT / "assets"
+PNTN_LOGO = ASSETS_DIR / "pntn_logo.png"
+TUM_LOGO = ASSETS_DIR / "tum_logo.png"
+
 from LLM_stage2 import (  # noqa: E402
     retrieval_rows_to_stage1_signals,
     run_stage2_from_signals,
@@ -50,11 +54,21 @@ CHUNK_SCOPE_OPTIONS = ["webpage_chunk", "pdf_chunk"]
 
 st.set_page_config(page_title="Business Development Radar", layout="wide")
 
+def render_header() -> None:
+    logo_col1, logo_col2, logo_col3 = st.columns([1.5, 3, 1])
+
+    with logo_col1:
+        if PNTN_LOGO.exists():
+            st.image(str(PNTN_LOGO), width=180)
+
+    with logo_col3:
+        if TUM_LOGO.exists():
+            st.image(str(TUM_LOGO), width=110)
 
 def main() -> None:
     if not require_password():
         return
-
+    render_header()
     st.title("Business Development Radar")
     st.caption("DB-backed LLM1 evidence retrieval and LLM2 synthesis")
 
@@ -133,6 +147,7 @@ def require_password() -> bool:
     if st.session_state.get("authenticated"):
         return True
 
+    render_header()
     with st.form("login"):
         st.subheader("Business Development Radar")
         password = st.text_input("Password", type="password")
