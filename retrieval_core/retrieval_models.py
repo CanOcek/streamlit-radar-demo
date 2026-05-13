@@ -51,3 +51,10 @@ class RetrievalOptions:
 
 
 RetrievalRow = dict[str, Any]
+
+
+@dataclass
+class RelatedContext:
+    """Container for related companies and persons for a given scope."""
+    related_companies: list[tuple[str, str, str, str, str, Any]]  # (related_to, company_name, company_url, description, status, roles)
+    related_persons: list[tuple[str, str, str, str]]  # (related_to, full_name, description, roles)
