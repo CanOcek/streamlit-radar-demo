@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-ASSETS_DIR = PROJECT_ROOT / "assets"
+ASSETS_DIR = PROJECT_ROOT / "ui" / "assets"
 PNTN_LOGO = ASSETS_DIR / "pntn_logo.png"
 TUM_LOGO = ASSETS_DIR / "tum_logo.png"
 
@@ -114,7 +114,7 @@ def main() -> None:
             filters=filters,
             vector_queries=vector_queries,
             options=options,
-            scope_companies=scope_companies,
+            scope_companies=effective_companies,
             scope_categories=scope_categories,
         )
 
@@ -479,23 +479,23 @@ def _render_roles_display(roles: Any, company_name, related_to) -> None:
 def render_overview(result: dict[str, Any] | None, related_companies: list, related_persons: list) -> None:
     if not result:
         st.info("Run LLM2 synthesis to see the overview.")
-        return
-
-    st.subheader("Executive Summary")
-    st.write(result.get("executive_summary", ""))
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Overall Direction", result.get("overall_direction", "-"))
-    col2.metric("Overall Confidence", result.get("overall_confidence", "-"))
-    col3.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
-
-    st.subheader("Recommended Follow-Up")
-    follow_up = result.get("recommended_follow_up", [])
-    if follow_up:
-        for item in follow_up:
-            st.markdown(f"- {item}")
     else:
-        st.info("No follow-up recommendations available.")
+        st.subheader("Executive Summary")
+        st.write(result.get("executive_summary", ""))
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Overall Direction", result.get("overall_direction", "-"))
+        col2.metric("Overall Confidence", result.get("overall_confidence", "-"))
+        col3.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
+
+        st.subheader("Recommended Follow-Up")
+        follow_up = result.get("recommended_follow_up", [])
+        if follow_up:
+            for item in follow_up:
+                st.markdown(f"- {item}")
+        else:
+            st.info("No follow-up recommendations available.")
+
     st.subheader("Related Companies")
     if not related_companies:
         st.info("No related companies found.")

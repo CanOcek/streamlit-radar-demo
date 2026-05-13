@@ -1,4 +1,4 @@
-from retrieval_core import RelatedContext
+from .retrieval_models import RelatedContext
 from shared.db import get_db_connection
 
 
