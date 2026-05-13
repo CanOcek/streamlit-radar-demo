@@ -88,7 +88,7 @@ def main() -> None:
         )
         st.divider()
         options = RetrievalOptions(
-            limit=st.slider("Evidence limit", min_value=1, max_value=100, value=40, step=1),
+            limit=st.slider("Evidence limit", min_value=1, max_value=300, value=100, step=1),
             include_raw_content=st.toggle(
                 "Include raw full content in evidence rows",
                 value=False,
@@ -96,6 +96,11 @@ def main() -> None:
         )
 
     vector_queries = render_vector_controls(strategy)
+    effective_companies, effective_categories = effective_scope_values(
+        scope_companies=scope_companies,
+        scope_categories=scope_categories,
+        db_options=db_options,
+    )
 
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -116,15 +121,13 @@ def main() -> None:
     signals = st.session_state.get("stage1_signals", [])
 
     if synthesize_clicked:
-        if not scope_companies or not scope_categories:
-            st.error("Choose at least one company and one category before running LLM2.")
-        elif not signals:
+        if not signals:
             st.warning("No retrieved evidence is available. Retrieve evidence first.")
         else:
             run_stage2_analysis(
                 signals=signals,
-                scope_companies=scope_companies,
-                scope_categories=scope_categories,
+                scope_companies=effective_companies,
+                scope_categories=effective_categories,
                 include_secondary=filters.include_secondary_categories,
             )
 
@@ -133,8 +136,8 @@ def main() -> None:
         rows=rows,
         signals=signals,
         result=result,
-        scope_companies=scope_companies,
-        scope_categories=scope_categories,
+        scope_companies=effective_companies,
+        scope_categories=effective_categories,
     )
 
 
@@ -174,6 +177,16 @@ def render_scope_controls(db_options: dict[str, list[str]]) -> tuple[list[str], 
         placeholder="Choose one or more categories",
     )
     return companies or [], categories
+
+
+def effective_scope_values(
+    scope_companies: list[str],
+    scope_categories: list[str],
+    db_options: dict[str, list[str]],
+) -> tuple[list[str], list[str]]:
+    companies = scope_companies or db_options.get("companies") or []
+    categories = scope_categories or sorted(set(CATEGORY_OPTIONS + db_options.get("categories", [])))
+    return companies, categories
 
 
 def render_strategy_control() -> str:
@@ -278,11 +291,15 @@ def _render_vector_spec(query: str, key_prefix: str) -> VectorQuerySpec:
     fields = st.multiselect(
         "LLM1 vector fields",
         list(ENRICHMENT_FIELD_OPTIONS.keys()),
-        default=["all"],
+        default=list(ENRICHMENT_FIELD_OPTIONS.keys()),
         format_func=lambda value: ENRICHMENT_FIELD_OPTIONS[value],
         key=f"{key_prefix}_fields",
     )
-    include_chunks = st.checkbox("Search chunks", value=False, key=f"{key_prefix}_chunks")
+    include_chunks = st.checkbox(
+        "Search by Raw Text Embeddings",
+        value=False,
+        key=f"{key_prefix}_chunks",
+    )
 
     chunk_scopes = CHUNK_SCOPE_OPTIONS
     include_noise = False
@@ -293,11 +310,6 @@ def _render_vector_spec(query: str, key_prefix: str) -> VectorQuerySpec:
             CHUNK_SCOPE_OPTIONS,
             default=CHUNK_SCOPE_OPTIONS,
             key=f"{key_prefix}_chunk_scopes",
-        )
-        require_chunk_enrichment = st.checkbox(
-            "Require enrichment/noise row for chunk hits",
-            value=True,
-            key=f"{key_prefix}_require_chunk_enrichment",
         )
         include_noise = st.checkbox(
             "Include noise chunk results",
@@ -323,10 +335,6 @@ def retrieve_evidence(
     scope_companies: list[str],
     scope_categories: list[str],
 ) -> None:
-    if not scope_companies or not scope_categories:
-        st.error("Choose at least one company and one category before retrieving evidence.")
-        return
-
     with st.spinner("Retrieving LLM1 evidence from Postgres..."):
         rows = retrieve_for_llm2(
             filters=filters,
@@ -337,7 +345,8 @@ def retrieve_evidence(
     st.session_state["retrieval_rows"] = rows
     st.session_state["stage1_signals"] = retrieval_rows_to_stage1_signals(rows)
     st.session_state.pop("stage2_result", None)
-    st.success(f"Retrieved {len(rows)} evidence row(s).")
+    limit_status = "Evidence limit reached." if len(rows) >= options.limit else "Evidence limit not reached."
+    st.success(f"Retrieved {len(rows)} evidence row(s). {limit_status}")
 
 
 def run_stage2_analysis(
@@ -659,6 +668,7 @@ def _table_row(row: dict[str, Any]) -> dict[str, Any]:
         "direction": row.get("direction"),
         "confidence": row.get("confidence"),
         "similarity": row.get("best_similarity"),
+        "matched_with": matched_with(row),
         "source_type": row.get("source_type"),
         "page_type": row.get("page_type"),
         "url": row.get("raw_url"),
@@ -666,6 +676,15 @@ def _table_row(row: dict[str, Any]) -> dict[str, Any]:
         "enrichment_id": row.get("enrichment_id"),
         "pdf_segment_id": row.get("pdf_segment_id"),
     }
+
+
+def matched_with(row: dict[str, Any]) -> str | None:
+    matched_fields = row.get("matched_fields") or []
+    if not matched_fields:
+        return None
+
+    best_match = matched_fields[0]
+    return best_match.get("field_name") or best_match.get("retrieval_source")
 
 
 def _write_text_block(title: str, value: str | None) -> None:
