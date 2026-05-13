@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import sys
 from pathlib import Path
 from typing import Any
@@ -12,8 +13,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 ASSETS_DIR = PROJECT_ROOT / "ui" / "assets"
-PNTN_LOGO = ASSETS_DIR / "pntn_logo.png"
-TUM_LOGO = ASSETS_DIR / "tum_logo.png"
+PNTN_LOGO = ASSETS_DIR / "pntn_logo.jpeg"
+TUM_LOGO = ASSETS_DIR / "tum_logo.jpeg"
 
 from LLM_stage2 import (  # noqa: E402
     retrieval_rows_to_stage1_signals,
@@ -54,21 +55,43 @@ CHUNK_SCOPE_OPTIONS = ["webpage_chunk", "pdf_chunk"]
 
 st.set_page_config(page_title="Business Development Radar", layout="wide")
 
-def render_header() -> None:
-    logo_col1, logo_col2, logo_col3 = st.columns([1.5, 3, 1])
 
-    with logo_col1:
-        if PNTN_LOGO.exists():
-            st.image(str(PNTN_LOGO), width=180)
+def _img_to_base64(path: Path) -> str:
+    return base64.b64encode(path.read_bytes()).decode()
 
-    with logo_col3:
-        if TUM_LOGO.exists():
-            st.image(str(TUM_LOGO), width=110)
+
+def render_sidebar_branding() -> None:
+    pntn_html = ""
+    tum_html = ""
+
+    if PNTN_LOGO.exists():
+        pntn_b64 = _img_to_base64(PNTN_LOGO)
+        pntn_html = f'<img src="data:image/jpeg;base64,{pntn_b64}" style="width:60px; display:block;">'
+
+    if TUM_LOGO.exists():
+        tum_b64 = _img_to_base64(TUM_LOGO)
+        tum_html = f'<img src="data:image/jpeg;base64,{tum_b64}" style="width:80px; display:block;">'
+
+    st.markdown(
+        f"""
+        <div style="
+            display:flex;
+            align-items:flex-start;
+            gap:4px;
+            margin-top:-10px;
+            margin-bottom:0px;
+        ">
+            {pntn_html}
+            {tum_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 def main() -> None:
     if not require_password():
         return
-    render_header()
     st.title("Business Development Radar")
     st.caption("DB-backed LLM1 evidence retrieval and LLM2 synthesis")
 
@@ -77,6 +100,7 @@ def main() -> None:
         st.warning(f"Could not load live filter options from Postgres: {db_error}")
 
     with st.sidebar:
+        render_sidebar_branding()
         st.header("Scope")
         scope_companies, scope_categories = render_scope_controls(db_options)
         st.divider()
@@ -150,7 +174,6 @@ def require_password() -> bool:
     if st.session_state.get("authenticated"):
         return True
 
-    render_header()
     with st.form("login"):
         st.subheader("Business Development Radar")
         password = st.text_input("Password", type="password")
