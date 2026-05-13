@@ -453,48 +453,27 @@ def _get_relationship_description(subject: str, related: str, group: str, direct
 def _render_roles_display(roles: Any, company_name, related_to) -> None:
     """Render roles JSON in a nice formatted table."""
     roles_list = _parse_roles_json(roles)
-    
+
     if not roles_list:
         st.markdown("*No role information available*")
         return
-    
-    st.markdown("**Relationship Details:**")
-    
-    for idx, role in enumerate(roles_list):
-        if not isinstance(role, dict):
-            continue
-        
-        role_name = role.get("name", "Unknown")
-        role_type = role.get("type", "")
-        group = role.get("group", "")
-        date_val = role.get("date", "")
-        shares_percent = role.get("sharesPercent")
-        
-        # Create readable description
-        rel_desc = _get_relationship_description(
-        subject=related_to,      # the company you scraped for
-        related=company_name,    # the related entity
-        group=role.get("group"),
-        direction=role.get("dir"),
-    )
-        
-        # Build role info string
-        parts = [f"**{role_name}**"]
-        if role_type and role_type != role_name:
-            parts.append(f"(__{role_type}__)")
 
-        if rel_desc != "related":
-            parts.append(f"  \n*Relationship: {rel_desc}*")
-        if date_val:
-            parts.append(f"  \n*Date: {date_val}*")
-        if shares_percent is not None:
-            parts.append(f"  \n**Ownership: {shares_percent}%**")
-        
-        st.markdown(" ".join(parts))
-        
-        # Add separator between roles
-        if idx < len(roles_list) - 1:
-            st.divider()
+    st.markdown("**Relationship Details:**")
+
+    first_role = next(
+        (role for role in roles_list if isinstance(role, dict)),
+        None
+    )
+
+    role_name = first_role.get("name", "Unknown")
+    date_val = first_role.get("date", "")
+
+    # Build role info string
+    parts = [f"**{role_name}**"]
+
+    if date_val:
+        parts.append(f"  \n*Date: {date_val}*")
+    st.markdown(" ".join(parts))
 
 
 def render_overview(result: dict[str, Any] | None, related_companies: list, related_persons: list) -> None:
