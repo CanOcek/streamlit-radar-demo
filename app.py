@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import sys
-from datetime import date, datetime
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -13,8 +11,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+ASSETS_DIR = PROJECT_ROOT / "assets"
+PNTN_LOGO = ASSETS_DIR / "pntn_logo.png"
+TUM_LOGO = ASSETS_DIR / "tum_logo.png"
+
 from LLM_stage2 import (  # noqa: E402
-    build_stage2_prompt_preview,
     retrieval_rows_to_stage1_signals,
     run_stage2_from_signals,
 )
@@ -54,11 +55,21 @@ CHUNK_SCOPE_OPTIONS = ["webpage_chunk", "pdf_chunk"]
 
 st.set_page_config(page_title="Business Development Radar", layout="wide")
 
+def render_header() -> None:
+    logo_col1, logo_col2, logo_col3 = st.columns([1.5, 3, 1])
+
+    with logo_col1:
+        if PNTN_LOGO.exists():
+            st.image(str(PNTN_LOGO), width=180)
+
+    with logo_col3:
+        if TUM_LOGO.exists():
+            st.image(str(TUM_LOGO), width=110)
 
 def main() -> None:
     if not require_password():
         return
-
+    render_header()
     st.title("Business Development Radar")
     st.caption("DB-backed LLM1 evidence retrieval and LLM2 synthesis")
 
@@ -137,6 +148,7 @@ def require_password() -> bool:
     if st.session_state.get("authenticated"):
         return True
 
+    render_header()
     with st.form("login"):
         st.subheader("Business Development Radar")
         password = st.text_input("Password", type="password")
@@ -157,13 +169,12 @@ def render_scope_controls(db_options: dict[str, list[str]]) -> tuple[list[str], 
         db_options.get("companies") or [],
         placeholder="Choose one or more companies",
     )
-    extra_companies = st.text_input("Additional companies", placeholder="Comma-separated exact names")
     categories = st.multiselect(
         "Categories",
         sorted(set(CATEGORY_OPTIONS + db_options.get("categories", []))),
         placeholder="Choose one or more categories",
     )
-    return _merge_lists(companies, _csv(extra_companies)) or [], categories
+    return companies or [], categories
 
 
 def render_strategy_control() -> str:
@@ -216,7 +227,7 @@ def render_filter_controls(
         "Signal strength",
         SIGNAL_STRENGTH_OPTIONS,
         default=[],
-        format_func=lambda value: value or "blank",
+        format_func=lambda value: value or "weak",
     )
     secondary_categories = st.text_input(
         "Additional secondary category filter",
@@ -360,8 +371,8 @@ def render_workspace(
         st.info("Choose a scope, retrieve evidence, then run LLM2 synthesis.")
         return
 
-    tab_overview, tab_findings, tab_evidence, tab_llm2_input, tab_json = st.tabs(
-        ["Overview", "Findings", "Evidence", "LLM2 Input", "Raw JSON"]
+    tab_overview, tab_findings, tab_evidence = st.tabs(
+        ["Overview", "Findings", "Evidence"]
     )
 
     related_companies = st.session_state.get("related_companies", [])
@@ -373,10 +384,6 @@ def render_workspace(
         render_findings(result)
     with tab_evidence:
         render_evidence_rows(rows)
-    with tab_llm2_input:
-        render_llm2_input_preview(signals, scope_companies, scope_categories)
-    with tab_json:
-        st.json(to_json_safe(result or {"retrieval_rows": rows}), expanded=False)
 
 
 def _parse_roles_json(roles_data: Any) -> list[dict[str, Any]]:
@@ -519,7 +526,13 @@ def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
         st.info("No retrieved evidence available.")
         return
 
-    st.dataframe([_table_row(row) for row in rows], use_container_width=True, hide_index=True)
+    render_category_summary(rows)
+    st.markdown("**All Fetched Results**")
+    st.dataframe(
+        format_table_columns([_table_row(row) for row in rows]),
+        use_container_width=True,
+        hide_index=True,
+    )
     for row in rows:
         title = row.get("title") or row.get("heading") or "Untitled"
         with st.expander(f"{row.get('company') or '-'} - {title}"):
@@ -549,16 +562,69 @@ def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
             _write_text_block("Possible business suggestion", row.get("possible_business_suggestion"))
 
 
-def render_llm2_input_preview(signals, scope_companies: list[str], scope_categories: list[str]) -> None:
-    if not signals:
-        st.info("Retrieve evidence to preview LLM2 input.")
+def render_category_summary(rows: list[dict[str, Any]]) -> None:
+    summary_rows = build_category_summary(rows)
+    if not summary_rows:
         return
-    prompt = build_stage2_prompt_preview(
-        signals=signals,
-        companies=scope_companies,
-        categories=scope_categories,
+
+    st.markdown("**Category Counts**")
+    st.dataframe(
+        format_table_columns(summary_rows),
+        use_container_width=True,
+        hide_index=True,
+        height=240,
     )
-    st.text_area("Prompt sent to LLM2", value=prompt, height=520)
+
+
+def build_category_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    summary: dict[tuple[str, str], dict[str, Any]] = {}
+
+    for row in rows:
+        company = row.get("company") or ""
+        primary_category = row.get("category") or ""
+        secondary_categories = row.get("secondary_categories") or []
+
+        categories = []
+        if primary_category:
+            categories.append(primary_category)
+        for category in secondary_categories:
+            if category and category not in categories:
+                categories.append(category)
+
+        for category in categories:
+            key = (company, category)
+            item = summary.setdefault(
+                key,
+                {
+                    "company name": company,
+                    "category": category,
+                    "primary_count": 0,
+                    "total_count": 0,
+                },
+            )
+            item["total_count"] += 1
+            if category == primary_category:
+                item["primary_count"] += 1
+
+    return sorted(
+        summary.values(),
+        key=lambda item: (
+            item["company name"].lower(),
+            item["category"].lower(),
+        ),
+    )
+
+
+def format_table_columns(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {_readable_column_name(key): value for key, value in row.items()}
+        for row in rows
+    ]
+
+
+def _readable_column_name(name: str) -> str:
+    readable = name.replace("_", " ")
+    return readable[:1].upper() + readable[1:]
 
 
 def render_grouped_findings(findings: list[dict[str, Any]]) -> None:
@@ -717,34 +783,12 @@ def _csv(value: str) -> list[str] | None:
     return values or None
 
 
-def _merge_lists(first: list[str], second: list[str] | None) -> list[str] | None:
-    merged = []
-    for value in first + (second or []):
-        if value not in merged:
-            merged.append(value)
-    return merged or None
-
-
 def _relevance_value(choice: str) -> bool | None:
     if choice == "Relevant only":
         return True
     if choice == "Non-relevant only":
         return False
     return None
-
-
-def to_json_safe(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): to_json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [to_json_safe(item) for item in value]
-    if isinstance(value, Decimal):
-        return float(value)
-    if isinstance(value, (datetime, date)):
-        return value.isoformat()
-    if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
-    return value
 
 
 if __name__ == "__main__":
