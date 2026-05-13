@@ -5,14 +5,14 @@ try:
     from .content_hydration import hydrate_raw_content
     from .enrichment_vector_retrieval import search_enrichment_embeddings
     from .result_consolidation import consolidate_results, limit_unranked_results
-    from .retrieval_models import RetrievalFilters, RetrievalOptions, VectorQuerySpec
+    from .retrieval_models import RetrievalFilters, RetrievalOptions, VectorQuerySpec, RelatedContext
     from .signal_retrieval import fetch_enrichment_signals
 except ImportError:
     from chunk_vector_retrieval import search_chunk_embeddings
     from content_hydration import hydrate_raw_content
     from enrichment_vector_retrieval import search_enrichment_embeddings
     from result_consolidation import consolidate_results, limit_unranked_results
-    from retrieval_models import RetrievalFilters, RetrievalOptions, VectorQuerySpec
+    from retrieval_models import RetrievalFilters, RetrievalOptions, VectorQuerySpec, RelatedContext
     from signal_retrieval import fetch_enrichment_signals
 
 from shared.embeddings import embed_text
@@ -100,7 +100,6 @@ def _noise_filters(filters: RetrievalFilters) -> RetrievalFilters:
         is_relevant=None,
     )
 
-
 def _maybe_hydrate(
     rows: list[dict[str, Any]],
     include_raw_content: bool,
@@ -108,3 +107,5 @@ def _maybe_hydrate(
     if not include_raw_content:
         return rows
     return hydrate_raw_content(rows)
+
+

@@ -23,6 +23,7 @@ from retrieval_core import (  # noqa: E402
     RetrievalOptions,
     VectorQuerySpec,
     retrieve_for_llm2,
+    retrieve_related_context,
 )
 from retrieval_core.retrieval_utils import get_db_connection  # noqa: E402
 from shared.settings import get_setting  # noqa: E402
@@ -304,7 +305,6 @@ def _render_vector_spec(query: str, key_prefix: str) -> VectorQuerySpec:
         require_chunk_enrichment=require_chunk_enrichment,
     )
 
-
 def retrieve_evidence(
     filters: RetrievalFilters,
     vector_queries: list[VectorQuerySpec],
@@ -322,9 +322,12 @@ def retrieve_evidence(
             vector_queries=vector_queries,
             options=options,
         )
+        related_context = retrieve_related_context(scope_companies)
 
     st.session_state["retrieval_rows"] = rows
     st.session_state["stage1_signals"] = retrieval_rows_to_stage1_signals(rows)
+    st.session_state["related_companies"] = related_context.related_companies
+    st.session_state["related_persons"] = related_context.related_persons
     st.session_state.pop("stage2_result", None)
     st.success(f"Retrieved {len(rows)} evidence row(s).")
 
@@ -361,8 +364,11 @@ def render_workspace(
         ["Overview", "Findings", "Evidence", "LLM2 Input", "Raw JSON"]
     )
 
+    related_companies = st.session_state.get("related_companies", [])
+    related_persons = st.session_state.get("related_persons", [])
+
     with tab_overview:
-        render_overview(result)
+        render_overview(result, related_companies, related_persons)
     with tab_findings:
         render_findings(result)
     with tab_evidence:
@@ -373,7 +379,88 @@ def render_workspace(
         st.json(to_json_safe(result or {"retrieval_rows": rows}), expanded=False)
 
 
-def render_overview(result: dict[str, Any] | None) -> None:
+def _parse_roles_json(roles_data: Any) -> list[dict[str, Any]]:
+    """Parse roles data which might be a string or list."""
+    import json
+    
+    if isinstance(roles_data, str):
+        try:
+            return json.loads(roles_data)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    elif isinstance(roles_data, list):
+        return roles_data
+    return []
+
+
+def _get_relationship_description(subject: str, related: str, group: str, direction: str) -> str:
+    """Get human-readable description based on group and direction."""
+    relationship_map = {
+        ("Succession", "Source"): (related, "is the former (older) entity of", subject),
+        ("Succession", "Target"): (related, "is the successor of", subject),
+        ("Merger", "Source"):     (related, "is the selling entity in a merger with", subject),
+        ("Merger", "Target"):     (related, "is the buying entity acquiring", subject),
+        ("Control", "Source"):    (related, "controls", subject),
+        ("Control", "Target"):    (subject, "controls", related),
+        ("Interest", "Source"):   (subject, "owns a stake in", related),
+        ("Interest", "Target"):   (related, "owns a stake in", subject),
+        ("Personal", "Source"):   (subject, "holds a personal role at", related),
+        ("Personal", "Target"):   (related, "holds a personal role at", subject),
+    }
+    parts = relationship_map.get((group, direction))
+    if parts:
+        a, verb, b = parts
+        return f"{a} {verb} {b}"
+    return f"{related} is related to {subject}"
+
+def _render_roles_display(roles: Any, company_name, related_to) -> None:
+    """Render roles JSON in a nice formatted table."""
+    roles_list = _parse_roles_json(roles)
+    
+    if not roles_list:
+        st.markdown("*No role information available*")
+        return
+    
+    st.markdown("**Relationship Details:**")
+    
+    for idx, role in enumerate(roles_list):
+        if not isinstance(role, dict):
+            continue
+        
+        role_name = role.get("name", "Unknown")
+        role_type = role.get("type", "")
+        group = role.get("group", "")
+        date_val = role.get("date", "")
+        shares_percent = role.get("sharesPercent")
+        
+        # Create readable description
+        rel_desc = _get_relationship_description(
+        subject=related_to,      # the company you scraped for
+        related=company_name,    # the related entity
+        group=role.get("group"),
+        direction=role.get("dir"),
+    )
+        
+        # Build role info string
+        parts = [f"**{role_name}**"]
+        if role_type and role_type != role_name:
+            parts.append(f"(__{role_type}__)")
+
+        if rel_desc != "related":
+            parts.append(f"  \n*Relationship: {rel_desc}*")
+        if date_val:
+            parts.append(f"  \n*Date: {date_val}*")
+        if shares_percent is not None:
+            parts.append(f"  \n**Ownership: {shares_percent}%**")
+        
+        st.markdown(" ".join(parts))
+        
+        # Add separator between roles
+        if idx < len(roles_list) - 1:
+            st.divider()
+
+
+def render_overview(result: dict[str, Any] | None, related_companies: list, related_persons: list) -> None:
     if not result:
         st.info("Run LLM2 synthesis to see the overview.")
         return
@@ -393,6 +480,22 @@ def render_overview(result: dict[str, Any] | None) -> None:
             st.markdown(f"- {item}")
     else:
         st.info("No follow-up recommendations available.")
+    st.subheader("Related Companies")
+    if not related_companies:
+        st.info("No related companies found.")
+    else:
+        for related_to, company_name, company_url, description, status, roles in related_companies:
+            with st.expander(f"{related_to} → {company_name}"):
+                st.markdown(f"**Status:** {status or '-'}")
+                _render_roles_display(roles, company_name, related_to)
+
+    st.subheader("Related Persons")
+    if not related_persons:
+        st.info("No related persons found.")
+    else:
+        for related_to, full_name, description, roles in related_persons:
+            with st.expander(f"{related_to} → {full_name}"):
+                st.markdown(f"**Description:** {description or '-'}")
 
 
 def render_findings(result: dict[str, Any] | None) -> None:
