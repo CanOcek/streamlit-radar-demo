@@ -105,6 +105,8 @@ def main() -> None:
         scope_companies, scope_categories = render_scope_controls(db_options)
         st.divider()
         strategy = render_strategy_control()
+        evidence_limit = st.slider("Evidence limit", min_value=1, max_value=300, value=100, step=1)
+        st.divider()
         filters = render_filter_controls(
             db_options=db_options,
             scope_companies=scope_companies,
@@ -112,7 +114,7 @@ def main() -> None:
         )
         st.divider()
         options = RetrievalOptions(
-            limit=st.slider("Evidence limit", min_value=1, max_value=300, value=100, step=1),
+            limit=evidence_limit,
             include_raw_content=st.toggle(
                 "Include raw full content in evidence rows",
                 value=False,
@@ -222,8 +224,9 @@ def render_strategy_control() -> str:
             "Multi-query vector search",
         ],
         help=(
-            "Exact fetch returns matching LLM1 signals without embeddings. "
-            "Vector modes rank by similarity and dedupe repeated source/PDF-segment hits."
+            "Exact fetch returns all matching LLM1 signals without ranking. \n\n"
+            "Vector modes rank by similarity to the search query over selected fields. \n\n"
+            "Vector search is most useful with a large dataset, and exact fetch with filtering."
         ),
     )
 
@@ -234,21 +237,25 @@ def render_filter_controls(
     scope_categories: list[str],
 ) -> RetrievalFilters:
     st.subheader("LLM1 Result Filters")
-    include_secondary = st.checkbox(
-        "Include secondary categories",
-        value=True,
-    )
     signal_strengths = st.multiselect(
         "Signal strength",
         SIGNAL_STRENGTH_OPTIONS,
         default=["strong", "medium"],
         format_func=lambda value: value or "noise",
+        help="Noise signals don't have LLM1 results"
     )
     directions = st.multiselect("Direction", DIRECTION_OPTIONS, default=[])
     confidences = st.multiselect("Confidence", CONFIDENCE_OPTIONS, default=[])
-    secondary_categories = st.text_input(
+    include_secondary = st.checkbox(
+        "Include secondary categories",
+        value=True,
+        help="Toggle off to only retrieve results based on primary category",
+    )
+    secondary_categories = st.multiselect(
         "Additional secondary category filter",
-        placeholder="Comma-separated secondary categories",
+        db_options.get("secondary_categories") or [],
+        placeholder="Leave empty for all secondary categories",
+        disabled=include_secondary,
     )
 
     st.subheader("Metadata Filters")
@@ -267,7 +274,7 @@ def render_filter_controls(
         companies=scope_companies or None,
         categories=scope_categories or None,
         include_secondary_categories=include_secondary,
-        secondary_categories=_csv(secondary_categories),
+        secondary_categories=secondary_categories or None,
         page_type=page_types or None,
         signal_strength=signal_strengths or None,
         direction=directions or None,
@@ -764,15 +771,31 @@ def load_filter_options() -> tuple[dict[str, list[str]], str | None]:
                     """
                 )
                 page_types = [row[0] for row in cur.fetchall()]
+
+                cur.execute(
+                    """
+                    SELECT DISTINCT unnest(secondary_categories) AS secondary_category
+                    FROM source_enrichments
+                    WHERE secondary_categories IS NOT NULL
+                    ORDER BY secondary_category
+                    """
+                )
+                secondary_categories = [row[0] for row in cur.fetchall() if row[0]]
             return {
                 "companies": companies,
                 "categories": categories,
                 "page_types": page_types,
+                "secondary_categories": secondary_categories,
             }, None
         finally:
             conn.close()
     except Exception as exc:
-        return {"companies": [], "categories": [], "page_types": []}, str(exc)
+        return {
+            "companies": [],
+            "categories": [],
+            "page_types": [],
+            "secondary_categories": [],
+        }, str(exc)
 
 
 def _table_row(row: dict[str, Any]) -> dict[str, Any]:
