@@ -105,7 +105,15 @@ def main() -> None:
         scope_companies, scope_categories = render_scope_controls(db_options)
         st.divider()
         strategy = render_strategy_control()
-        evidence_limit = st.slider("Evidence limit", min_value=1, max_value=300, value=100, step=1)
+        evidence_limit = st.slider("Evidence limit", min_value=1, max_value=300, value=50, step=1)
+        min_vector_similarity = st.slider(
+            "Minimum vector similarity",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.25,
+            step=0.01,
+            disabled=strategy == "Exact metadata fetch",
+        )
         st.divider()
         filters = render_filter_controls(
             db_options=db_options,
@@ -115,6 +123,7 @@ def main() -> None:
         st.divider()
         options = RetrievalOptions(
             limit=evidence_limit,
+            min_vector_similarity=min_vector_similarity,
             include_raw_content=st.toggle(
                 "Include raw full content in evidence rows",
                 value=False,

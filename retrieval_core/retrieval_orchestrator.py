@@ -72,6 +72,10 @@ def retrieve_signals(
                 )
             )
 
+    rows = _filter_by_min_similarity(
+        rows,
+        min_similarity=options.min_vector_similarity,
+    )
     rows = consolidate_results(
         rows,
         limit=options.limit if options.apply_limit_after_dedupe else None,
@@ -106,5 +110,18 @@ def _maybe_hydrate(
     if not include_raw_content:
         return rows
     return hydrate_raw_content(rows)
+
+
+def _filter_by_min_similarity(
+    rows: list[dict[str, Any]],
+    min_similarity: float | None,
+) -> list[dict[str, Any]]:
+    if min_similarity is None:
+        return rows
+    return [
+        row for row in rows
+        if row.get("best_similarity") is not None
+        and row["best_similarity"] >= min_similarity
+    ]
 
 

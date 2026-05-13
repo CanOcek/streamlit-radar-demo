@@ -47,6 +47,7 @@ class RetrievalOptions:
     limit: int = 40
     include_raw_content: bool = False
     apply_limit_after_dedupe: bool = True
+    min_vector_similarity: float = 0.20
 
 
 RetrievalRow = dict[str, Any]
