@@ -424,12 +424,13 @@ def render_workspace(
     scope_companies: list[str],
     scope_categories: list[str],
 ) -> None:
+
     if not rows and result is None:
         st.info("Choose a scope, retrieve evidence, then run LLM2 synthesis.")
         return
 
     tab_overview, tab_findings, tab_evidence, tab_company_info = st.tabs(
-        ["Overview", "Findings", "Evidence", "Company Info"]
+        ["Overview", "Findings", "Evidence", "Company Structure"]
     )
 
     related_companies = st.session_state.get("related_companies", [])
@@ -479,31 +480,39 @@ def _get_relationship_description(subject: str, related: str, group: str, direct
         return f"{a} {verb} {b}"
     return f"{related} is related to {subject}"
 
-def _render_roles_display(roles: Any, company_name, related_to) -> None:
-    """Render roles JSON in a nice formatted table."""
+def _render_roles_display(roles: Any, company_name: str, related_to: str) -> None:
     roles_list = _parse_roles_json(roles)
 
     if not roles_list:
-        st.markdown("*No role information available*")
+        st.caption("No detailed role information available.")
         return
 
-    st.markdown("**Relationship Details:**")
+    for idx, role in enumerate(roles_list):
+        if not isinstance(role, dict):
+            continue
 
-    first_role = next(
-        (role for role in roles_list if isinstance(role, dict)),
-        None
-    )
+        role_name = role.get("name", "Unknown")
+        role_type = role.get("type", "")
+        date_val = role.get("date", "")
+        shares_percent = role.get("sharesPercent")
 
-    role_name = first_role.get("name", "Unknown")
-    date_val = first_role.get("date", "")
+        line_parts = [f"**{role_name}**"]
+        if role_type and role_type != role_name:
+            line_parts.append(f" · {role_type}")
 
-    # Build role info string
-    parts = [f"**{role_name}**"]
+        st.markdown("".join(line_parts))
 
-    if date_val:
-        parts.append(f"  \n*Date: {date_val}*")
-    st.markdown(" ".join(parts))
+        meta_parts = []
+        if date_val:
+            meta_parts.append(f"Date: {date_val}")
+        if shares_percent is not None:
+            meta_parts.append(f"Ownership: {shares_percent}%")
 
+        if meta_parts:
+            st.caption(" | ".join(meta_parts))
+
+        if idx < len(roles_list) - 1:
+            st.markdown("---")
 
 def render_overview(result: dict[str, Any] | None) -> None:
     if not result:
@@ -526,25 +535,123 @@ def render_overview(result: dict[str, Any] | None) -> None:
     else:
         st.info("No follow-up recommendations available.")
 
+def info_pill(text: str, bg: str = "#2f3542", color: str = "#ffffff") -> None:
+    st.markdown(
+        f"""
+        <span style="
+            display:inline-block;
+            padding:4px 10px;
+            border-radius:999px;
+            background:{bg};
+            color:{color};
+            font-size:12px;
+            font-weight:600;
+            margin-right:6px;
+            margin-bottom:6px;
+        ">
+            {text}
+        </span>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_company_info_summary(related_companies: list, related_persons: list) -> None:
+    st.subheader("Company Structure Snapshot")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric("Related Companies", len(related_companies))
+    with c2:
+        st.metric("Related Persons", len(related_persons))
 
 def render_company_info(related_companies: list, related_persons: list) -> None:
+    render_company_info_summary(related_companies, related_persons)
+    st.markdown("")
+
+    # -------------------------
+    # Related Companies
+    # -------------------------
     st.subheader("Related Companies")
     if not related_companies:
         st.info("No related companies found.")
     else:
         for related_to, company_name, company_url, description, status, roles in related_companies:
-            with st.expander(f"{related_to} → {company_name}"):
-                st.markdown(f"**Status:** {status or '-'}")
-                _render_roles_display(roles, company_name, related_to)
+            roles_list = _parse_roles_json(roles)
+            first_role = ""
+            first_date = ""
 
+            if roles_list:
+                first_valid_role = next((r for r in roles_list if isinstance(r, dict)), None)
+                if first_valid_role:
+                    first_role = first_valid_role.get("name", "")
+                    first_date = first_valid_role.get("date", "")
+
+            with st.container(border=True):
+                st.markdown(f"### {company_name}")
+                st.caption(f"Relationship to {related_to}")
+
+                meta_col1, meta_col2, meta_col3 = st.columns([1, 1.2, 2])
+
+                with meta_col1:
+                    if status:
+                        info_pill(status, bg="#1f6f43")
+
+                with meta_col2:
+                    if first_role:
+                        info_pill(first_role, bg="#30363d")
+
+                with meta_col3:
+                    if first_date:
+                        st.caption(f"Date: {first_date}")
+
+                if company_url:
+                    st.markdown(f"[Open source link]({company_url})")
+
+                if description:
+                    st.markdown(f"**Description:** {description}")
+
+                if roles_list:
+                    with st.expander("Show relationship details"):
+                        _render_roles_display(roles, company_name, related_to)
+    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    st.markdown("")
+
+    # -------------------------
+    # Related Persons
+    # -------------------------
     st.subheader("Related Persons")
     if not related_persons:
         st.info("No related persons found.")
     else:
         for related_to, full_name, description, roles in related_persons:
-            with st.expander(f"{related_to} → {full_name}"):
-                st.markdown(f"**Description:** {description or '-'}")
+            roles_list = _parse_roles_json(roles)
+            first_date = ""
 
+            if roles_list:
+                first_valid_role = next((r for r in roles_list if isinstance(r, dict)), None)
+                if first_valid_role:
+                    first_date = first_valid_role.get("date", "")
+
+            with st.container(border=True):
+                st.markdown(f"### {full_name}")
+                st.caption(f"Relationship to {related_to}")
+
+                meta_col1, meta_col2 = st.columns([2, 2])
+
+                with meta_col1:
+                    if description:
+                        info_pill(description, bg="#30363d")
+                        st.markdown(f"**Role:** {description}")
+
+                with meta_col2:
+                    if first_date:
+                        st.caption(f"Date: {first_date}")
+
+                if roles_list:
+                    with st.expander("Show role details"):
+                        _render_roles_display(roles, full_name, related_to)
+st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
 def render_findings(result: dict[str, Any] | None) -> None:
     if not result:
