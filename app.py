@@ -98,6 +98,7 @@ def main() -> None:
     if not require_password():
         return
     st.title("Business Development Radar")
+    st.caption("Choose companies and categories from the sidebar, retrieve evidence, and generate a synthesis.")
 
     def render_vector_controls(strategy: str) -> list[VectorQuerySpec]:
         if strategy == "Exact metadata fetch":
@@ -435,9 +436,6 @@ def render_workspace(
     scope_categories: list[str],
 ) -> None:
 
-    if not rows and result is None:
-        st.info("Choose a scope, retrieve evidence, then run LLM2 synthesis.")
-        return
 
     tab_overview, tab_findings, tab_evidence, tab_company_info = st.tabs(
         ["Overview", "Findings", "Evidence", "Company Structure"]
