@@ -98,7 +98,10 @@ def main() -> None:
     if not require_password():
         return
     st.title("Business Development Radar")
-    st.caption("DB-backed LLM1 evidence retrieval and LLM2 synthesis")
+
+    def render_vector_controls(strategy: str) -> list[VectorQuerySpec]:
+        if strategy == "Exact metadata fetch":
+            return []
 
     db_options, db_error = load_filter_options()
     if db_error:
