@@ -69,9 +69,11 @@ def inject_button_styles() -> None:
         """
         <style>
         div.stButton > button {
-            padding: 0.22rem 0.70rem;
-            font-size: 0.88rem;
-            border-radius: 8px;
+            padding: 0.12rem 0.55rem !important;
+            font-size: 0.82rem !important;
+            border-radius: 8px !important;
+            min-height: 2.35rem !important;
+            line-height: 1.0 !important;
         }
         </style>
         """,
@@ -185,7 +187,7 @@ def main() -> None:
     signals = st.session_state.get("stage1_signals", [])
     can_synthesize = bool(signals)
 
-    btn_col1, btn_col2, _ = st.columns([0.95, 1.05, 4.0])
+    btn_col1, btn_col2, _ = st.columns([0.82, 0.98, 4.2], gap="small")
 
     with btn_col1:
         retrieve_clicked = st.button("Retrieve Evidence", type="primary")
@@ -195,6 +197,7 @@ def main() -> None:
             "Run LLM2 Synthesis",
             type="primary" if can_synthesize else "secondary",
         )
+
 
     if retrieve_clicked:
         retrieve_evidence(
