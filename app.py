@@ -69,11 +69,12 @@ def inject_button_styles() -> None:
         """
         <style>
         div.stButton > button {
-            padding: 0.12rem 0.55rem !important;
-            font-size: 0.82rem !important;
+            padding: 0.12rem 0.65rem !important;
+            font-size: 0.80rem !important;
             border-radius: 8px !important;
-            min-height: 2.35rem !important;
+            min-height: 2.10rem !important;
             line-height: 1.0 !important;
+            white-space: nowrap !important;
         }
         </style>
         """,
@@ -187,10 +188,10 @@ def main() -> None:
     signals = st.session_state.get("stage1_signals", [])
     can_synthesize = bool(signals)
 
-    btn_col1, btn_col2, _ = st.columns([0.82, 0.98, 4.2], gap="small")
+    btn_col1, btn_col2, _ = st.columns([1.05, 1.20, 3.75], gap="small")
 
     with btn_col1:
-        retrieve_clicked = st.button("Retrieve Evidence", type="primary")
+        retrieve_clicked = st.button("Get Evidence", type="primary")
 
     with btn_col2:
         synthesize_clicked = st.button(
