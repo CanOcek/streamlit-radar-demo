@@ -444,7 +444,6 @@ def run_stage2_analysis(
             include_secondary=include_secondary,
         )
     st.session_state["stage2_result"] = result
-    st.success("LLM2 synthesis complete.")
 
 
 def render_workspace(
