@@ -10,7 +10,12 @@ DEFAULT_FIELD_NAMES = [
     "possible_business_suggestion",
 ]
 DEFAULT_BUCKETS = ["main", "weak"]
-DEFAULT_SOURCE_TYPES = ["webpages", "pdfs"]
+DEFAULT_SOURCE_TYPES = [
+    "webpages",
+    "pdfs",
+    "northdata_publications",
+    "northdata_events",
+]
 DEFAULT_CHUNK_SCOPES = ["webpage_chunk", "pdf_chunk"]
 
 

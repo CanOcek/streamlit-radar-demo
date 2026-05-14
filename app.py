@@ -46,7 +46,12 @@ ENRICHMENT_FIELD_OPTIONS = {
     "why_it_matters_for_pntn": "Why it matters",
     "possible_business_suggestion": "Business suggestion",
 }
-SOURCE_TYPE_OPTIONS = ["webpages", "pdfs"]
+SOURCE_TYPE_OPTIONS = [
+    "webpages",
+    "pdfs",
+    "northdata_publications",
+    "northdata_events",
+]
 DIRECTION_OPTIONS = ["opportunity", "neutral", "risk"]
 CONFIDENCE_OPTIONS = ["high", "medium", "low"]
 SIGNAL_STRENGTH_OPTIONS = ["strong", "medium", ""]
@@ -563,7 +568,7 @@ def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
         return
 
     render_category_summary(rows)
-    st.markdown("**All Fetched Results**")
+    st.markdown("**All Results**")
     st.dataframe(
         format_table_columns([_table_row(row) for row in rows]),
         use_container_width=True,
@@ -603,7 +608,7 @@ def render_category_summary(rows: list[dict[str, Any]]) -> None:
     if not summary_rows:
         return
 
-    st.markdown("**Category Counts**")
+    st.markdown("**Category Counts for Retrieved Results**")
     st.dataframe(
         format_table_columns(summary_rows),
         use_container_width=True,
@@ -773,6 +778,12 @@ def load_filter_options() -> tuple[dict[str, list[str]], str | None]:
                     SELECT DISTINCT page_type
                     FROM webpages
                     WHERE page_type IS NOT NULL AND page_type <> ''
+                    UNION
+                    SELECT DISTINCT COALESCE(NULLIF(source_name, ''), 'northdata_publication') AS page_type
+                    FROM northdata_publications
+                    UNION
+                    SELECT DISTINCT COALESCE(NULLIF(type, ''), 'northdata_event') AS page_type
+                    FROM northdata_events
                     ORDER BY page_type
                     """
                 )

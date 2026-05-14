@@ -19,7 +19,7 @@ def fetch_enrichment_signals(
     sql = """
     SELECT
         se.source_id,
-        se.source_type,
+        a.source_type,
         se.content_scope,
         se.pdf_segment_id,
         ps.segment_index,
@@ -30,11 +30,18 @@ def fetch_enrichment_signals(
         NULL::bigint AS pdf_chunk_id,
         NULL::int AS chunk_index,
 
-        COALESCE(w.company, p.company) AS company,
-        COALESCE(w.page_type, 'pdf_segment') AS page_type,
-        COALESCE(w.title, ps.heading, p.title) AS title,
-        COALESCE(w.date, p.date) AS date,
-        COALESCE(w.raw_url, p.pdf_link) AS raw_url,
+        COALESCE(w.company, p.company, np.company_name, ne.company_name) AS company,
+        COALESCE(
+            w.page_type,
+            CASE
+                WHEN np.id IS NOT NULL THEN COALESCE(NULLIF(np.source_name, ''), 'northdata_publication')
+                WHEN ne.id IS NOT NULL THEN COALESCE(NULLIF(ne.type, ''), 'northdata_event')
+            END,
+            'pdf_segment'
+        ) AS page_type,
+        COALESCE(w.title, ps.heading, p.title, np.title, ne.description) AS title,
+        COALESCE(w.date, p.date, np.date, ne.date) AS date,
+        COALESCE(w.raw_url, p.pdf_link, np.publication_url, ne.company_url) AS raw_url,
 
         se.id AS enrichment_id,
         NULL::bigint AS noise_enrichment_id,
@@ -61,30 +68,43 @@ def fetch_enrichment_signals(
         'normal'::text AS enrichment_mode,
         TRUE AS has_enrichment,
         CASE
-            WHEN se.source_type = 'webpages' THEN w.updated_at
-            ELSE COALESCE(ps.created_at, p.created_at, se.created_at)
+            WHEN a.source_type = 'webpages' THEN w.updated_at
+            ELSE COALESCE(ps.created_at, p.created_at, np.created_at, ne.created_at, se.created_at)
         END AS sort_timestamp
 
     FROM source_enrichments se
+    JOIN all_sources a ON a.id = se.source_id
     LEFT JOIN webpages w
         ON se.content_scope = 'source'
-        AND se.source_type = 'webpages'
+        AND a.source_type = 'webpages'
         AND w.id = se.source_id
     LEFT JOIN pdf_segments ps
         ON se.content_scope = 'pdf_segment'
-        AND se.source_type = 'pdfs'
+        AND a.source_type = 'pdfs'
         AND ps.id = se.pdf_segment_id
     LEFT JOIN pdfs p
         ON p.id = ps.pdf_id
+    LEFT JOIN northdata_publications np
+        ON se.content_scope = 'source'
+        AND a.source_type = 'northdata_publications'
+        AND np.id = se.source_id
+    LEFT JOIN northdata_events ne
+        ON se.content_scope = 'source'
+        AND a.source_type = 'northdata_events'
+        AND ne.id = se.source_id
 
     WHERE
-        (%(source_types)s IS NULL OR se.source_type = ANY(%(source_types)s))
+        (%(source_types)s IS NULL OR a.source_type = ANY(%(source_types)s))
         AND (
-            (se.source_type = 'webpages' AND w.id IS NOT NULL)
+            (a.source_type = 'webpages' AND w.id IS NOT NULL)
             OR
-            (se.source_type = 'pdfs' AND ps.id IS NOT NULL AND p.id IS NOT NULL)
+            (a.source_type = 'pdfs' AND ps.id IS NOT NULL AND p.id IS NOT NULL)
+            OR
+            (a.source_type = 'northdata_publications' AND np.id IS NOT NULL)
+            OR
+            (a.source_type = 'northdata_events' AND ne.id IS NOT NULL)
         )
-        AND (%(companies)s IS NULL OR COALESCE(w.company, p.company) = ANY(%(companies)s))
+        AND (%(companies)s IS NULL OR COALESCE(w.company, p.company, np.company_name, ne.company_name) = ANY(%(companies)s))
         AND (
             %(categories)s IS NULL
             OR se.category = ANY(%(categories)s)
@@ -94,7 +114,17 @@ def fetch_enrichment_signals(
             )
         )
         AND (%(secondary_categories)s IS NULL OR se.secondary_categories && %(secondary_categories)s)
-        AND (%(page_type)s IS NULL OR COALESCE(w.page_type, 'pdf_segment') = ANY(%(page_type)s))
+        AND (
+            %(page_type)s IS NULL
+            OR COALESCE(
+                w.page_type,
+                CASE
+                    WHEN np.id IS NOT NULL THEN COALESCE(NULLIF(np.source_name, ''), 'northdata_publication')
+                    WHEN ne.id IS NOT NULL THEN COALESCE(NULLIF(ne.type, ''), 'northdata_event')
+                END,
+                'pdf_segment'
+            ) = ANY(%(page_type)s)
+        )
         AND (%(buckets)s IS NULL OR se.bucket = ANY(%(buckets)s))
         AND (%(signal_strength)s IS NULL OR se.signal_strength = ANY(%(signal_strength)s))
         AND (%(direction)s IS NULL OR se.direction = ANY(%(direction)s))
