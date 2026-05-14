@@ -130,7 +130,7 @@ def main() -> None:
             limit=evidence_limit,
             min_vector_similarity=min_vector_similarity,
             include_raw_content=st.toggle(
-                "Include raw full content in evidence rows",
+                "Include full raw text content in evidence rows",
                 value=False,
             ),
         )
@@ -601,6 +601,7 @@ def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
             _write_text_block("Evidence", row.get("evidence"))
             _write_text_block("Why it matters for PNTN", row.get("why_it_matters_for_pntn"))
             _write_text_block("Possible business suggestion", row.get("possible_business_suggestion"))
+            _write_text_block("Full raw content", row.get("raw_content"))
 
 
 def render_category_summary(rows: list[dict[str, Any]]) -> None:
