@@ -106,11 +106,35 @@ def main() -> None:
 
     with st.sidebar:
         render_sidebar_branding()
-        st.header("Scope")
+
+        st.header("Selection")
         scope_companies, scope_categories = render_scope_controls(db_options)
+
         st.divider()
+
+        filters = render_filter_controls(
+            db_options=db_options,
+            scope_companies=scope_companies,
+            scope_categories=scope_categories,
+        )
+
+        include_raw_content = st.toggle(
+            "Include full raw text content",
+            value=False,
+        )
+
+        st.divider()
+
         strategy = render_strategy_control()
-        evidence_limit = st.slider("Evidence limit", min_value=1, max_value=300, value=50, step=1)
+
+        evidence_limit = st.slider(
+            "Evidence limit",
+            min_value=1,
+            max_value=300,
+            value=50,
+            step=1,
+        )
+
         min_vector_similarity = st.slider(
             "Minimum vector similarity",
             min_value=0.0,
@@ -119,20 +143,11 @@ def main() -> None:
             step=0.01,
             disabled=strategy == "Exact metadata fetch",
         )
-        st.divider()
-        filters = render_filter_controls(
-            db_options=db_options,
-            scope_companies=scope_companies,
-            scope_categories=scope_categories,
-        )
-        st.divider()
+
         options = RetrievalOptions(
             limit=evidence_limit,
             min_vector_similarity=min_vector_similarity,
-            include_raw_content=st.toggle(
-                "Include full raw text content in evidence rows",
-                value=False,
-            ),
+            include_raw_content=include_raw_content,
         )
 
     vector_queries = render_vector_controls(strategy)
@@ -237,7 +252,7 @@ def effective_scope_values(
 
 
 def render_strategy_control() -> str:
-    st.header("Retrieval")
+    st.markdown("### Retrieval")
     return st.radio(
         "Strategy",
         [
@@ -246,8 +261,8 @@ def render_strategy_control() -> str:
             "Multi-query vector search",
         ],
         help=(
-            "Exact fetch returns all matching LLM1 signals without ranking. \n\n"
-            "Vector modes rank by similarity to the search query over selected fields. \n\n"
+            "Exact fetch returns all matching LLM1 signals without ranking.\n\n"
+            "Vector modes rank by similarity to the search query over selected fields.\n\n"
             "Vector search is most useful with a large dataset, and exact fetch with filtering."
         ),
     )
@@ -258,50 +273,42 @@ def render_filter_controls(
     scope_companies: list[str],
     scope_categories: list[str],
 ) -> RetrievalFilters:
-    st.subheader("LLM1 Result Filters")
     signal_strengths = st.multiselect(
         "Signal strength",
         SIGNAL_STRENGTH_OPTIONS,
         default=["strong", "medium"],
         format_func=lambda value: value or "noise",
-        help="Noise signals don't have LLM1 results"
+        help="Noise signals don't have LLM1 results",
     )
-    directions = st.multiselect("Direction", DIRECTION_OPTIONS, default=[])
-    confidences = st.multiselect("Confidence", CONFIDENCE_OPTIONS, default=[])
+
+    directions = st.multiselect(
+        "Direction",
+        DIRECTION_OPTIONS,
+        default=[],
+    )
+
+    confidences = st.multiselect(
+        "Confidence",
+        CONFIDENCE_OPTIONS,
+        default=[],
+    )
+
     include_secondary = st.checkbox(
         "Include secondary categories",
         value=True,
-        help="Toggle off to only retrieve results based on primary category",
-    )
-    secondary_categories = st.multiselect(
-        "Additional secondary category filter",
-        db_options.get("secondary_categories") or [],
-        placeholder="Leave empty for all secondary categories",
-        disabled=include_secondary,
-    )
-
-    st.subheader("Metadata Filters")
-    source_types = st.multiselect(
-        "Source types",
-        SOURCE_TYPE_OPTIONS,
-        default=SOURCE_TYPE_OPTIONS,
-    )
-    page_types = st.multiselect(
-        "Page types",
-        db_options.get("page_types") or [],
-        placeholder="Leave empty for all page types",
+        help="Turn off to only retrieve results based on the primary category",
     )
 
     return RetrievalFilters(
         companies=scope_companies or None,
         categories=scope_categories or None,
         include_secondary_categories=include_secondary,
-        secondary_categories=secondary_categories or None,
-        page_type=page_types or None,
+        secondary_categories=None,
+        page_type=None,
         signal_strength=signal_strengths or None,
         direction=directions or None,
         confidence=confidences or None,
-        source_types=source_types or None,
+        source_types=SOURCE_TYPE_OPTIONS,
     )
 
 
