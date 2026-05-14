@@ -597,6 +597,67 @@ def render_company_structure_preview(
     if not related_companies and not related_persons:
         st.info("No company structure information available.")
 
+def is_legal_category_selected(scope_categories: list[str]) -> bool:
+    normalized = {(c or "").replace("&amp;", "&").strip() for c in scope_categories}
+    return "Legal & C-Level Updates" in normalized
+def render_company_structure_preview(
+    related_companies: list,
+    related_persons: list,
+) -> None:
+    st.subheader("Company Structure Preview")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric("Related Companies", len(related_companies))
+    with c2:
+        st.metric("Related Persons", len(related_persons))
+
+    if related_companies:
+        st.markdown("**Top related companies**")
+        for related_to, company_name, company_url, description, status, roles in related_companies[:2]:
+            roles_list = _parse_roles_json(roles)
+            first_role = ""
+            first_date = ""
+
+            if roles_list:
+                first_valid_role = next((r for r in roles_list if isinstance(r, dict)), None)
+                if first_valid_role:
+                    first_role = first_valid_role.get("name", "")
+                    first_date = first_valid_role.get("date", "")
+
+            with st.container(border=True):
+                st.markdown(f"**{company_name}**")
+                st.caption(f"Relationship to {related_to}")
+
+                if status:
+                    info_pill(status, bg="#1f6f43")
+                if first_role:
+                    info_pill(first_role, bg="#30363d")
+                if first_date:
+                    st.caption(f"Date: {first_date}")
+
+    if related_persons:
+        st.markdown("**Top related persons**")
+        for related_to, full_name, description, roles in related_persons[:2]:
+            roles_list = _parse_roles_json(roles)
+            first_date = ""
+
+            if roles_list:
+                first_valid_role = next((r for r in roles_list if isinstance(r, dict)), None)
+                if first_valid_role:
+                    first_date = first_valid_role.get("date", "")
+
+            with st.container(border=True):
+                st.markdown(f"**{full_name}**")
+                st.caption(f"Relationship to {related_to}")
+
+                if description:
+                    info_pill(description, bg="#30363d")
+                if first_date:
+                    st.caption(f"Date: {first_date}")
+
+    if not related_companies and not related_persons:
+        st.info("No company structure information available.")
 
 def render_overview(
     result: dict[str, Any] | None,
@@ -604,27 +665,32 @@ def render_overview(
     related_companies: list,
     related_persons: list,
 ) -> None:
-    if not result:
+    legal_selected = is_legal_category_selected(scope_categories)
+    has_company_info = bool(related_companies or related_persons)
+
+    if result:
+        st.subheader("Executive Summary")
+        st.write(result.get("executive_summary", ""))
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Overall Direction", result.get("overall_direction", "-"))
+        col2.metric("Overall Confidence", result.get("overall_confidence", "-"))
+        col3.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
+
+        st.subheader("Recommended Follow-Up")
+        follow_up = result.get("recommended_follow_up", [])
+        if follow_up:
+            for item in follow_up:
+                st.markdown(f"- {item}")
+        else:
+            st.info("No follow-up recommendations available.")
+
+    elif legal_selected and has_company_info:
+        st.info("No legal/c-level signal synthesis was found for the selected scope, but company structure information is available.")
+    else:
         return
 
-    st.subheader("Executive Summary")
-    st.write(result.get("executive_summary", ""))
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Overall Direction", result.get("overall_direction", "-"))
-    col2.metric("Overall Confidence", result.get("overall_confidence", "-"))
-    col3.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
-
-    st.subheader("Recommended Follow-Up")
-    follow_up = result.get("recommended_follow_up", [])
-    if follow_up:
-        for item in follow_up:
-            st.markdown(f"- {item}")
-    else:
-        st.info("No follow-up recommendations available.")
-
-    # Show compact company structure preview only for legal/c-level category
-    if "Legal & C-Level Updates" in scope_categories or "Legal &amp; C-Level Updates" in scope_categories:
+    if legal_selected and has_company_info:
         st.markdown("")
         render_company_structure_preview(
             related_companies=related_companies,
