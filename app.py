@@ -476,7 +476,12 @@ def render_workspace(
     related_persons = st.session_state.get("related_persons", [])
 
     with tab_overview:
-        render_overview(result)
+        render_overview(
+            result=result,
+            scope_categories=scope_categories,
+            related_companies=related_companies,
+            related_persons=related_persons,
+        )
     with tab_findings:
         render_findings(result)
     with tab_evidence:
@@ -552,8 +557,53 @@ def _render_roles_display(roles: Any, company_name: str, related_to: str) -> Non
 
         if idx < len(roles_list) - 1:
             st.markdown("---")
+def render_company_structure_preview(
+    related_companies: list,
+    related_persons: list,
+) -> None:
+    st.subheader("Company Structure Preview")
 
-def render_overview(result: dict[str, Any] | None) -> None:
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric("Related Companies", len(related_companies))
+    with c2:
+        st.metric("Related Persons", len(related_persons))
+
+    if related_companies:
+        st.markdown("**Top related companies**")
+        for related_to, company_name, company_url, description, status, roles in related_companies[:2]:
+            roles_list = _parse_roles_json(roles)
+            first_role = ""
+            if roles_list:
+                first_valid_role = next((r for r in roles_list if isinstance(r, dict)), None)
+                if first_valid_role:
+                    first_role = first_valid_role.get("name", "")
+
+            with st.container(border=True):
+                st.markdown(f"**{company_name}**")
+                if status:
+                    info_pill(status, bg="#1f6f43")
+                if first_role:
+                    info_pill(first_role, bg="#30363d")
+
+    if related_persons:
+        st.markdown("**Top related persons**")
+        for related_to, full_name, description, roles in related_persons[:2]:
+            with st.container(border=True):
+                st.markdown(f"**{full_name}**")
+                if description:
+                    info_pill(description, bg="#30363d")
+
+    if not related_companies and not related_persons:
+        st.info("No company structure information available.")
+
+
+def render_overview(
+    result: dict[str, Any] | None,
+    scope_categories: list[str],
+    related_companies: list,
+    related_persons: list,
+) -> None:
     if not result:
         return
 
@@ -572,6 +622,14 @@ def render_overview(result: dict[str, Any] | None) -> None:
             st.markdown(f"- {item}")
     else:
         st.info("No follow-up recommendations available.")
+
+    # Show compact company structure preview only for legal/c-level category
+    if "Legal & C-Level Updates" in scope_categories or "Legal &amp; C-Level Updates" in scope_categories:
+        st.markdown("")
+        render_company_structure_preview(
+            related_companies=related_companies,
+            related_persons=related_persons,
+        )
 
 def info_pill(text: str, bg: str = "#2f3542", color: str = "#ffffff") -> None:
     st.markdown(
