@@ -341,10 +341,6 @@ def render_filter_controls(
 
 def render_vector_controls(strategy: str) -> list[VectorQuerySpec]:
     if strategy == "Exact metadata fetch":
-        st.info(
-            "The current retrieval strategy skips vector search over embeddings and fetches all "
-            "filtered LLM1 signals."
-        )
         return []
 
     st.subheader("Vector Search")
