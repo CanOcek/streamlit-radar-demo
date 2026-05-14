@@ -13,8 +13,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 ASSETS_DIR = PROJECT_ROOT / "ui" / "assets"
-PNTN_LOGO = ASSETS_DIR / "pntn_logo.jpeg"
-TUM_LOGO = ASSETS_DIR / "tum_logo.jpeg"
+PNTN_LOGO = ASSETS_DIR / "pntn_logo.png"
+TUM_LOGO = ASSETS_DIR / "tum_logo.png"
 
 from LLM_stage2 import (  # noqa: E402
     retrieval_rows_to_stage1_signals,
@@ -71,11 +71,11 @@ def render_sidebar_branding() -> None:
 
     if PNTN_LOGO.exists():
         pntn_b64 = _img_to_base64(PNTN_LOGO)
-        pntn_html = f'<img src="data:image/jpeg;base64,{pntn_b64}" style="width:60px; display:block;">'
+        pntn_html = f'<img src="data:image/png;base64,{pntn_b64}" style="width:60px; display:block;">'
 
     if TUM_LOGO.exists():
         tum_b64 = _img_to_base64(TUM_LOGO)
-        tum_html = f'<img src="data:image/jpeg;base64,{tum_b64}" style="width:80px; display:block;">'
+        tum_html = f'<img src="data:image/png;base64,{tum_b64}" style="width:80px; display:block;">'
 
     st.markdown(
         f"""
