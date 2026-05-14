@@ -685,12 +685,6 @@ def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
         return
 
     render_category_summary(rows)
-    st.markdown("**All Results**")
-    st.dataframe(
-        format_table_columns([_table_row(row) for row in rows]),
-        use_container_width=True,
-        hide_index=True,
-    )
     for row in rows:
         title = row.get("title") or row.get("heading") or "Untitled"
         with st.expander(f"{row.get('company') or '-'} - {title}"):
