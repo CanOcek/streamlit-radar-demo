@@ -524,7 +524,6 @@ def _render_roles_display(roles: Any, company_name: str, related_to: str) -> Non
 
 def render_overview(result: dict[str, Any] | None) -> None:
     if not result:
-        st.info("Run LLM2 synthesis to see the overview.")
         return
 
     st.subheader("Executive Summary")
