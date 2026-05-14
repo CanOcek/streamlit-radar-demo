@@ -230,8 +230,8 @@ def main() -> None:
         rows=rows,
         signals=signals,
         result=result,
-        scope_companies=effective_companies,
-        scope_categories=effective_categories,
+        scope_companies=scope_companies,
+        scope_categories=scope_categories,
     )
 
 
@@ -462,7 +462,11 @@ def render_workspace(
     scope_companies: list[str],
     scope_categories: list[str],
 ) -> None:
+    if not scope_companies or not scope_categories:
+        return
 
+    if not rows and result is None:
+        return
 
     tab_overview, tab_findings, tab_evidence, tab_company_info = st.tabs(
         ["Overview", "Findings", "Evidence", "Company Structure"]
