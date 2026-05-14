@@ -136,12 +136,18 @@ def main() -> None:
         scope_categories=scope_categories,
         db_options=db_options,
     )
+    rows = st.session_state.get("retrieval_rows", [])
+    signals = st.session_state.get("stage1_signals", [])
+    can_synthesize = bool(signals)
 
     col1, col2 = st.columns([1, 1])
     with col1:
         retrieve_clicked = st.button("Retrieve Evidence", type="primary")
     with col2:
-        synthesize_clicked = st.button("Run LLM2 Synthesis")
+        synthesize_clicked = st.button(
+            "Run LLM2 Synthesis",
+            type="primary" if can_synthesize else "secondary",
+        )
 
     if retrieve_clicked:
         retrieve_evidence(
@@ -151,9 +157,11 @@ def main() -> None:
             scope_companies=effective_companies,
             scope_categories=scope_categories,
         )
+        st.rerun()
 
-    rows = st.session_state.get("retrieval_rows", [])
-    signals = st.session_state.get("stage1_signals", [])
+    retrieval_status_message = st.session_state.pop("retrieval_status_message", None)
+    if retrieval_status_message:
+        st.success(retrieval_status_message)
 
     if synthesize_clicked:
         if not signals:
@@ -293,14 +301,17 @@ def render_filter_controls(
 
 
 def render_vector_controls(strategy: str) -> list[VectorQuerySpec]:
-    st.subheader("Vector Search")
     if strategy == "Exact metadata fetch":
-        st.info("This strategy skips embeddings and retrieves filtered LLM1 signals.")
+        st.info(
+            "The current retrieval strategy skips vector search over embeddings and fetches all "
+            "filtered LLM1 signals."
+        )
         return []
 
+    st.subheader("Vector Search")
     if strategy == "Single vector query":
         with st.container(border=True):
-            query = st.text_input("Query", placeholder="Example: new platform rollout")
+            query = st.text_input("Query", placeholder="Example: Changes in Management, AI Agent development opportunities")
             return [_render_vector_spec(query=query, key_prefix="single")]
 
     st.caption("Each query can target different enrichment fields and chunk embeddings.")
@@ -312,7 +323,7 @@ def render_vector_controls(strategy: str) -> list[VectorQuerySpec]:
             query = st.text_input(
                 "Query text",
                 key=f"multi_query_{idx}",
-                placeholder="Example: new business development",
+                placeholder="Example: New business developments",
             )
             specs.append(_render_vector_spec(query=query, key_prefix=f"multi_{idx}"))
     return specs
@@ -379,7 +390,9 @@ def retrieve_evidence(
     st.session_state["related_persons"] = related_context.related_persons
     st.session_state.pop("stage2_result", None)
     limit_status = "Evidence limit reached." if len(rows) >= options.limit else "Evidence limit not reached."
-    st.success(f"Retrieved {len(rows)} evidence row(s). {limit_status}")
+    st.session_state["retrieval_status_message"] = (
+        f"Retrieved {len(rows)} evidence row(s). {limit_status}"
+    )
 
 
 def run_stage2_analysis(
@@ -410,19 +423,21 @@ def render_workspace(
         st.info("Choose a scope, retrieve evidence, then run LLM2 synthesis.")
         return
 
-    tab_overview, tab_findings, tab_evidence = st.tabs(
-        ["Overview", "Findings", "Evidence"]
+    tab_overview, tab_findings, tab_evidence, tab_company_info = st.tabs(
+        ["Overview", "Findings", "Evidence", "Company Info"]
     )
 
     related_companies = st.session_state.get("related_companies", [])
     related_persons = st.session_state.get("related_persons", [])
 
     with tab_overview:
-        render_overview(result, related_companies, related_persons)
+        render_overview(result)
     with tab_findings:
         render_findings(result)
     with tab_evidence:
         render_evidence_rows(rows)
+    with tab_company_info:
+        render_company_info(related_companies, related_persons)
 
 
 def _parse_roles_json(roles_data: Any) -> list[dict[str, Any]]:
@@ -485,26 +500,29 @@ def _render_roles_display(roles: Any, company_name, related_to) -> None:
     st.markdown(" ".join(parts))
 
 
-def render_overview(result: dict[str, Any] | None, related_companies: list, related_persons: list) -> None:
+def render_overview(result: dict[str, Any] | None) -> None:
     if not result:
         st.info("Run LLM2 synthesis to see the overview.")
+        return
+
+    st.subheader("Executive Summary")
+    st.write(result.get("executive_summary", ""))
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Overall Direction", result.get("overall_direction", "-"))
+    col2.metric("Overall Confidence", result.get("overall_confidence", "-"))
+    col3.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
+
+    st.subheader("Recommended Follow-Up")
+    follow_up = result.get("recommended_follow_up", [])
+    if follow_up:
+        for item in follow_up:
+            st.markdown(f"- {item}")
     else:
-        st.subheader("Executive Summary")
-        st.write(result.get("executive_summary", ""))
+        st.info("No follow-up recommendations available.")
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Overall Direction", result.get("overall_direction", "-"))
-        col2.metric("Overall Confidence", result.get("overall_confidence", "-"))
-        col3.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
 
-        st.subheader("Recommended Follow-Up")
-        follow_up = result.get("recommended_follow_up", [])
-        if follow_up:
-            for item in follow_up:
-                st.markdown(f"- {item}")
-        else:
-            st.info("No follow-up recommendations available.")
-
+def render_company_info(related_companies: list, related_persons: list) -> None:
     st.subheader("Related Companies")
     if not related_companies:
         st.info("No related companies found.")
