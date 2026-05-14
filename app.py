@@ -64,6 +64,19 @@ st.set_page_config(page_title="Business Development Radar", layout="wide")
 def _img_to_base64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode()
 
+def inject_button_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        div.stButton > button {
+            padding: 0.35rem 0.9rem;
+            font-size: 0.95rem;
+            border-radius: 10px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def render_sidebar_branding() -> None:
     pntn_html = ""
@@ -97,6 +110,7 @@ def render_sidebar_branding() -> None:
 def main() -> None:
     if not require_password():
         return
+    inject_button_styles()
     st.title("Business Development Radar")
     st.caption("Choose companies and categories from the sidebar, retrieve evidence, and generate a synthesis.")
 
@@ -160,17 +174,27 @@ def main() -> None:
         scope_categories=scope_categories,
         db_options=db_options,
     )
+    if not scope_companies or not scope_categories:
+        st.session_state.pop("retrieval_rows", None)
+        st.session_state.pop("stage1_signals", None)
+        st.session_state.pop("stage2_result", None)
+        st.session_state.pop("related_companies", None)
+        st.session_state.pop("related_persons", None)
+
     rows = st.session_state.get("retrieval_rows", [])
     signals = st.session_state.get("stage1_signals", [])
     can_synthesize = bool(signals)
 
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        retrieve_clicked = st.button("Retrieve Evidence", type="primary")
-    with col2:
+    btn_col1, btn_col2, _ = st.columns([1.1, 1.2, 3.5])
+
+    with btn_col1:
+        retrieve_clicked = st.button("Retrieve Evidence", type="primary", use_container_width=True)
+
+    with btn_col2:
         synthesize_clicked = st.button(
             "Run LLM2 Synthesis",
             type="primary" if can_synthesize else "secondary",
+            use_container_width=True,
         )
 
     if retrieve_clicked:
