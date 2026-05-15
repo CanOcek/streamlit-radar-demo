@@ -7,6 +7,7 @@ from typing import Any
 
 import streamlit as st
 
+from retrieval_core.financial_retrieval import get_indicator
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -26,6 +27,7 @@ from retrieval_core import (  # noqa: E402
     VectorQuerySpec,
     retrieve_for_llm2,
     retrieve_related_context,
+    retrieve_financial_context
 )
 from retrieval_core.retrieval_utils import get_db_connection  # noqa: E402
 from shared.settings import get_setting  # noqa: E402
@@ -179,6 +181,8 @@ def main() -> None:
         st.session_state.pop("stage2_result", None)
         st.session_state.pop("related_companies", None)
         st.session_state.pop("related_persons", None)
+        st.session_state.pop("financials", None)  # add this
+
 
     rows = st.session_state.get("retrieval_rows", [])
     signals = st.session_state.get("stage1_signals", [])
@@ -418,11 +422,13 @@ def retrieve_evidence(
             options=options,
         )
         related_context = retrieve_related_context(scope_companies)
+        financial_context = retrieve_financial_context(scope_companies)
 
     st.session_state["retrieval_rows"] = rows
     st.session_state["stage1_signals"] = retrieval_rows_to_stage1_signals(rows)
     st.session_state["related_companies"] = related_context.related_companies
     st.session_state["related_persons"] = related_context.related_persons
+    st.session_state["financials"] = financial_context.financials
     st.session_state.pop("stage2_result", None)
     limit_status = "Evidence limit reached." if len(rows) >= options.limit else "Evidence limit not reached."
     st.session_state["retrieval_status_message"] = (
@@ -456,24 +462,32 @@ def render_workspace(
     if not scope_companies or not scope_categories:
         return
 
-    if not rows and result is None:
-        return
-
-    tab_overview, tab_findings, tab_evidence, tab_company_info = st.tabs(
-        ["Overview", "Findings", "Evidence", "Company Structure"]
-    )
-
     related_companies = st.session_state.get("related_companies", [])
     related_persons = st.session_state.get("related_persons", [])
+    financials = st.session_state.get("financials", [])
+
+    if not rows and result is None:
+        if not related_companies and not related_persons:  # add financials
+            return
+
+    tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials = st.tabs(
+        ["Overview", "Findings", "Evidence", "Company Structure", "Financials"]
+    )
 
     with tab_overview:
         render_overview(result)
+        if "Legal & C-Level Updates" in scope_categories:
+            render_company_structure_preview(related_companies, related_persons)
+        if "Financials" in scope_categories:
+            render_financial_context_preview(financials)
     with tab_findings:
         render_findings(result)
     with tab_evidence:
         render_evidence_rows(rows)
     with tab_company_info:
         render_company_info(related_companies, related_persons)
+    with tab_financials:                            # new tab
+        render_financial_context_preview(financials)
 
 
 def _parse_roles_json(roles_data: Any) -> list[dict[str, Any]]:
@@ -543,6 +557,7 @@ def _render_roles_display(roles: Any, company_name: str, related_to: str) -> Non
 
         if idx < len(roles_list) - 1:
             st.markdown("---")
+
 def render_company_structure_preview(
     related_companies: list,
     related_persons: list,
@@ -583,10 +598,60 @@ def render_company_structure_preview(
     if not related_companies and not related_persons:
         st.info("No company structure information available.")
 
+
+
+def render_financial_context_preview(financials: list[tuple[str, Any]]) -> None:
+    st.subheader("Financial Data")
+
+    if not financials:
+        st.info("No financial data available.")
+        return
+
+    # Filter out companies with no financials data
+    financials_with_data = [(name, data) for name, data in financials if data is not None]
+
+    if not financials_with_data:
+        st.info("No financial data available for selected companies.")
+        return
+
+    for company_name, financials_json in financials_with_data:
+        if not financials_json:
+            continue
+
+        # financials_json is a list of snapshots; take the most recent
+        snapshot = financials_json[0] if isinstance(financials_json, list) and len(financials_json) > 0 else financials_json if isinstance(financials_json, dict) else None
+
+        if not snapshot:
+            continue
+
+        items = snapshot.get("items", []) if isinstance(snapshot, dict) else []
+        date = snapshot.get("date", "") if isinstance(snapshot, dict) else ""
+        period = date[:4] if date else "N/A"  # e.g. "2025" from "2025-12-31"
+
+        revenue = get_indicator(items, "Revenue")
+        earnings = get_indicator(items, "Earnings")
+        equity = get_indicator(items, "Equity")
+        return_on_sales = get_indicator(items, "ReturnOnSales")
+        employees = get_indicator(items, "Employees")
+
+        with st.container(border=True):
+            st.markdown(f"**{company_name}** · FY{period}")
+            k1, k2, k3, k4, k5 = st.columns(5)
+            with k1:
+                st.metric("Revenue", revenue or "—")
+            with k2:
+                st.metric("Earnings", earnings or "—")
+            with k3:
+                st.metric("Equity", equity or "—")
+            with k4:
+                st.metric("Return on Sales", return_on_sales or "—")
+            with k5:
+                st.metric("Employees", employees or "—")
+
+
 def is_legal_category_selected(scope_categories: list[str]) -> bool:
     normalized = {(c or "").replace("&amp;", "&").strip() for c in scope_categories}
     return "Legal & C-Level Updates" in normalized
-
 
 def render_overview(result: dict[str, Any] | None) -> None:
     if not result:
