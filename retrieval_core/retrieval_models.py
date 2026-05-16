@@ -62,4 +62,4 @@ class RelatedContext:
 @dataclass
 class FinancialContext:
     """Container for financial data retrieved from northdata_companies."""
-    financials: list[tuple[str, Any]]  # (company_name, financials_json)
+    financials: list[dict[str, Any]] = field(default_factory=list)
