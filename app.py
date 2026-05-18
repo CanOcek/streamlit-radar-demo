@@ -27,7 +27,9 @@ from retrieval_core import (  # noqa: E402
     VectorQuerySpec,
     retrieve_for_llm2,
     retrieve_related_context,
-    retrieve_financial_context, retrieve_patent_context, retrieve_trademark_context
+    retrieve_financial_context,
+    retrieve_patent_context,
+    retrieve_trademark_context
 )
 from retrieval_core.retrieval_utils import get_db_connection  # noqa: E402
 from shared.settings import get_setting  # noqa: E402
