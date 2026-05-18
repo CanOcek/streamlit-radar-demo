@@ -183,6 +183,7 @@ def main() -> None:
         st.session_state.pop("related_companies", None)
         st.session_state.pop("related_persons", None)
         st.session_state.pop("financials", None)  # add this
+        st.session_state.pop("retrieval_include_secondary_categories", None)
 
 
     rows = st.session_state.get("retrieval_rows", [])
@@ -471,6 +472,7 @@ def retrieve_evidence(
     st.session_state["related_companies"] = related_context.related_companies
     st.session_state["related_persons"] = related_context.related_persons
     st.session_state["financials"] = financial_context.financials
+    st.session_state["retrieval_include_secondary_categories"] = filters.include_secondary_categories
     st.session_state.pop("stage2_result", None)
     limit_status = "Evidence limit reached." if len(rows) >= options.limit else "Evidence limit not reached."
     st.session_state["retrieval_status_message"] = (
@@ -507,6 +509,10 @@ def render_workspace(
     related_companies = st.session_state.get("related_companies", [])
     related_persons = st.session_state.get("related_persons", [])
     financials = st.session_state.get("financials", [])
+    include_secondary_categories = st.session_state.get(
+        "retrieval_include_secondary_categories",
+        False,
+    )
 
     if not rows and result is None:
         if not related_companies and not related_persons:  # add financials
@@ -525,7 +531,10 @@ def render_workspace(
     with tab_findings:
         render_findings(result)
     with tab_evidence:
-        render_evidence_rows(rows)
+        render_evidence_rows(
+            rows,
+            include_secondary_categories=include_secondary_categories,
+        )
     with tab_company_info:
         render_company_info(related_companies, related_persons)
     with tab_financials:                            # new tab
@@ -848,13 +857,19 @@ def render_findings(result: dict[str, Any] | None) -> None:
         render_list_block("Top Risks", result.get("top_risks", []))
 
 
-def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
+def render_evidence_rows(
+    rows: list[dict[str, Any]],
+    include_secondary_categories: bool,
+) -> None:
     st.subheader("Underlying LLM1 Evidence")
     if not rows:
         st.info("No retrieved evidence available.")
         return
 
-    render_category_summary(rows)
+    render_category_summary(
+        rows,
+        include_secondary_categories=include_secondary_categories,
+    )
     for row in rows:
         title = row.get("title") or row.get("heading") or "Untitled"
         with st.expander(f"{row.get('company') or '-'} - {title}"):
@@ -885,8 +900,14 @@ def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
             _write_text_block("Full raw content", row.get("raw_content"))
 
 
-def render_category_summary(rows: list[dict[str, Any]]) -> None:
-    summary_rows = build_category_summary(rows)
+def render_category_summary(
+    rows: list[dict[str, Any]],
+    include_secondary_categories: bool,
+) -> None:
+    summary_rows = build_category_summary(
+        rows,
+        include_secondary_categories=include_secondary_categories,
+    )
     if not summary_rows:
         return
 
@@ -899,7 +920,10 @@ def render_category_summary(rows: list[dict[str, Any]]) -> None:
     )
 
 
-def build_category_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def build_category_summary(
+    rows: list[dict[str, Any]],
+    include_secondary_categories: bool,
+) -> list[dict[str, Any]]:
     summary: dict[tuple[str, str], dict[str, Any]] = {}
 
     for row in rows:
@@ -910,9 +934,10 @@ def build_category_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         categories = []
         if primary_category:
             categories.append(primary_category)
-        for category in secondary_categories:
-            if category and category not in categories:
-                categories.append(category)
+        if include_secondary_categories:
+            for category in secondary_categories:
+                if category and category not in categories:
+                    categories.append(category)
 
         for category in categories:
             key = (company, category)
@@ -929,13 +954,40 @@ def build_category_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if category == primary_category:
                 item["primary_count"] += 1
 
-    return sorted(
-        summary.values(),
-        key=lambda item: (
-            item["company name"].lower(),
-            item["category"].lower(),
-        ),
-    )
+    if include_secondary_categories:
+        summary_rows = sorted(
+            summary.values(),
+            key=lambda item: (
+                -item["total_count"],
+                item["company name"].lower(),
+                item["category"].lower(),
+            ),
+        )
+    else:
+        summary_rows = sorted(
+            summary.values(),
+            key=lambda item: (
+                item["company name"].lower(),
+                item["category"].lower(),
+            ),
+        )
+    if include_secondary_categories:
+        return [
+            {
+                "company name": item["company name"],
+                "category": item["category"],
+                "total_count": item["total_count"],
+            }
+            for item in summary_rows
+        ]
+    return [
+        {
+            "company name": item["company name"],
+            "category": item["category"],
+            "primary_count": item["primary_count"],
+        }
+        for item in summary_rows
+    ]
 
 
 def format_table_columns(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
