@@ -27,7 +27,7 @@ from retrieval_core import (  # noqa: E402
     VectorQuerySpec,
     retrieve_for_llm2,
     retrieve_related_context,
-    retrieve_financial_context
+    retrieve_financial_context, retrieve_patent_context, retrieve_trademark_context
 )
 from retrieval_core.retrieval_utils import get_db_connection  # noqa: E402
 from shared.settings import get_setting  # noqa: E402
@@ -182,8 +182,10 @@ def main() -> None:
         st.session_state.pop("stage2_result", None)
         st.session_state.pop("related_companies", None)
         st.session_state.pop("related_persons", None)
-        st.session_state.pop("financials", None)  # add this
+        st.session_state.pop("financials", None)
         st.session_state.pop("retrieval_include_secondary_categories", None)
+        st.session_state.pop("patents", None)
+        st.session_state.pop("trademarks", None)
 
 
     rows = st.session_state.get("retrieval_rows", [])
@@ -466,12 +468,17 @@ def retrieve_evidence(
         )
         related_context = retrieve_related_context(scope_companies)
         financial_context = retrieve_financial_context(scope_companies)
+        patent_context = retrieve_patent_context(scope_companies)
+        trademark_context = retrieve_trademark_context(scope_companies)
+
 
     st.session_state["retrieval_rows"] = rows
     st.session_state["stage1_signals"] = retrieval_rows_to_stage1_signals(rows)
     st.session_state["related_companies"] = related_context.related_companies
     st.session_state["related_persons"] = related_context.related_persons
     st.session_state["financials"] = financial_context.financials
+    st.session_state["patents"] = patent_context.patents
+    st.session_state["trademarks"] = trademark_context.trademarks
     st.session_state["retrieval_include_secondary_categories"] = filters.include_secondary_categories
     st.session_state.pop("stage2_result", None)
     limit_status = "Evidence limit reached." if len(rows) >= options.limit else "Evidence limit not reached."
@@ -509,6 +516,9 @@ def render_workspace(
     related_companies = st.session_state.get("related_companies", [])
     related_persons = st.session_state.get("related_persons", [])
     financials = st.session_state.get("financials", [])
+    patents = st.session_state.get("patents", [])
+    trademarks = st.session_state.get("trademarks", [])
+
     include_secondary_categories = st.session_state.get(
         "retrieval_include_secondary_categories",
         False,
@@ -518,8 +528,8 @@ def render_workspace(
         if not related_companies and not related_persons:  # add financials
             return
 
-    tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials = st.tabs(
-        ["Overview", "Findings", "Evidence", "Company Structure", "Financials"]
+    tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials, tab_patents = st.tabs(
+        ["Overview", "Findings", "Evidence", "Company Structure", "Financials", "Patents&Trademarks"]
     )
 
     with tab_overview:
@@ -539,6 +549,10 @@ def render_workspace(
         render_company_info(related_companies, related_persons)
     with tab_financials:                            # new tab
         render_financial_context_preview(financials)
+    with tab_patents:
+        render_patent_context(patents)
+        st.divider()
+        render_trademark_context(trademarks)
 
 
 def _parse_roles_json(roles_data: Any) -> list[dict[str, Any]]:
@@ -698,6 +712,44 @@ def render_financial_context_preview(financials: list[tuple[str, Any]]) -> None:
                 st.metric("Return on Sales", return_on_sales or "—")
             with k5:
                 st.metric("Employees", employees or "—")
+
+def render_patent_context(patents: list) -> None:
+    st.subheader("Patents")
+
+    if not patents:
+        st.info("No patent data available.")
+        return
+
+    for patent in patents:
+        company_name = patent.company_name
+        description = patent.description
+        date = patent.date
+
+        with st.container(border=True):
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown(f"**{company_name}**")
+                st.write(description or "No description available.")
+            with col2:
+                if date:
+                    st.caption(f"Date: {date}")
+
+def render_trademark_context(trademarks: list) -> None:
+    st.subheader("Trademarks")
+
+    if not trademarks:
+        st.info("No trademark data available.")
+        return
+
+    for trademark in trademarks:
+        with st.container(border=True):
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown(f"**{trademark.company_name}**")
+                st.write(trademark.description or "No description available.")
+            with col2:
+                if trademark.date:
+                    st.caption(f"Date: {trademark.date}")
 
 
 def is_legal_category_selected(scope_categories: list[str]) -> bool:

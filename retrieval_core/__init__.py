@@ -1,4 +1,6 @@
-from .retrieval_models import RetrievalFilters, RetrievalOptions, VectorQuerySpec, RelatedContext, FinancialContext
+from .patents_trademarks_retrieval import retrieve_patent_context, retrieve_trademark_context
+from .retrieval_models import RetrievalFilters, RetrievalOptions, VectorQuerySpec, RelatedContext, FinancialContext, \
+    PatentEntry, PatentsContext, TrademarksContext, TrademarkEntry
 from .retrieval_orchestrator import retrieve_for_llm2, retrieve_signals
 from .related_retrieval import retrieve_related_context
 from .financial_retrieval import retrieve_financial_context
@@ -9,8 +11,14 @@ __all__ = [
     "VectorQuerySpec",
     "RelatedContext",
     "FinancialContext",
+    "PatentEntry",
+    "PatentsContext",
+    "TrademarksContext",
+    "TrademarkEntry",
     "retrieve_for_llm2",
     "retrieve_signals",
     "retrieve_related_context",
     "retrieve_financial_context",
+    "retrieve_patent_context",
+    "retrieve_trademark_context"
 ]

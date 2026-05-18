@@ -63,3 +63,22 @@ class RelatedContext:
 class FinancialContext:
     """Container for financial data retrieved from northdata_companies."""
     financials: list[dict[str, Any]] = field(default_factory=list)
+
+@dataclass
+class PatentEntry:
+   company_name: str
+   description: str
+   date: str
+
+@dataclass
+class PatentsContext:
+   patents: list[PatentEntry] = field(default_factory=list)
+
+@dataclass
+class TrademarkEntry:
+   company_name: str
+   description: str
+   date: str
+@dataclass
+class TrademarksContext:
+   trademarks: list[TrademarkEntry] = field(default_factory=list)
