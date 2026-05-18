@@ -31,9 +31,10 @@ from retrieval_core import (  # noqa: E402
 )
 from retrieval_core.retrieval_utils import get_db_connection  # noqa: E402
 from shared.settings import get_setting  # noqa: E402
+from ui_presets import PRESET_CATEGORIES, PRESET_COMPANIES  # noqa: E402
 
 
-CATEGORY_OPTIONS = [
+DEFAULT_CATEGORY_OPTIONS = [
     "Financials",
     "News / Products",
     "Partnerships / Acquisitions",
@@ -128,13 +129,18 @@ def main() -> None:
 
         st.header("Selection")
         scope_companies, scope_categories = render_scope_controls(db_options)
+        effective_companies, effective_categories = effective_scope_values(
+            scope_companies=scope_companies,
+            scope_categories=scope_categories,
+            db_options=db_options,
+        )
 
         st.divider()
 
         filters = render_filter_controls(
             db_options=db_options,
-            scope_companies=scope_companies,
-            scope_categories=scope_categories,
+            scope_companies=effective_companies,
+            scope_categories=effective_categories,
         )
 
         include_raw_content = st.toggle(
@@ -170,12 +176,7 @@ def main() -> None:
         )
 
     vector_queries = render_vector_controls(strategy)
-    effective_companies, effective_categories = effective_scope_values(
-        scope_companies=scope_companies,
-        scope_categories=scope_categories,
-        db_options=db_options,
-    )
-    if not scope_companies or not scope_categories:
+    if not effective_companies or not effective_categories:
         st.session_state.pop("retrieval_rows", None)
         st.session_state.pop("stage1_signals", None)
         st.session_state.pop("stage2_result", None)
@@ -206,7 +207,7 @@ def main() -> None:
             vector_queries=vector_queries,
             options=options,
             scope_companies=effective_companies,
-            scope_categories=scope_categories,
+            scope_categories=effective_categories,
         )
         st.rerun()
 
@@ -230,8 +231,8 @@ def main() -> None:
         rows=rows,
         signals=signals,
         result=result,
-        scope_companies=scope_companies,
-        scope_categories=scope_categories,
+        scope_companies=effective_companies,
+        scope_categories=effective_categories,
     )
 
 
@@ -259,15 +260,23 @@ def require_password() -> bool:
 
 
 def render_scope_controls(db_options: dict[str, list[str]]) -> tuple[list[str], list[str]]:
+    company_options = preset_or_database_options(
+        preset_values=PRESET_COMPANIES,
+        database_values=db_options.get("companies") or [],
+    )
+    category_options = preset_or_database_options(
+        preset_values=PRESET_CATEGORIES,
+        database_values=all_category_options(db_options),
+    )
     companies = st.multiselect(
         "Companies",
-        db_options.get("companies") or [],
-        placeholder="Choose one or more companies",
+        company_options,
+        placeholder="Leave empty to use all visible companies",
     )
     categories = st.multiselect(
         "Categories",
-        sorted(set(CATEGORY_OPTIONS + db_options.get("categories", []))),
-        placeholder="Choose one or more categories",
+        category_options,
+        placeholder="Leave empty to use all visible categories",
     )
     return companies or [], categories
 
@@ -277,9 +286,42 @@ def effective_scope_values(
     scope_categories: list[str],
     db_options: dict[str, list[str]],
 ) -> tuple[list[str], list[str]]:
-    companies = scope_companies or db_options.get("companies") or []
-    categories = scope_categories or sorted(set(CATEGORY_OPTIONS + db_options.get("categories", [])))
+    company_options = preset_or_database_options(
+        preset_values=PRESET_COMPANIES,
+        database_values=db_options.get("companies") or [],
+    )
+    category_options = preset_or_database_options(
+        preset_values=PRESET_CATEGORIES,
+        database_values=all_category_options(db_options),
+    )
+    companies = scope_companies or company_options
+    categories = scope_categories or category_options
     return companies, categories
+
+
+def all_category_options(db_options: dict[str, list[str]]) -> list[str]:
+    return sorted(set(DEFAULT_CATEGORY_OPTIONS + (db_options.get("categories") or [])))
+
+
+def preset_or_database_options(
+    preset_values: list[str],
+    database_values: list[str],
+) -> list[str]:
+    cleaned_presets = unique_nonempty_values(preset_values)
+    if cleaned_presets:
+        return cleaned_presets
+    return unique_nonempty_values(database_values)
+
+
+def unique_nonempty_values(values: list[str]) -> list[str]:
+    seen = set()
+    cleaned = []
+    for value in values:
+        value = (value or "").strip()
+        if value and value not in seen:
+            cleaned.append(value)
+            seen.add(value)
+    return cleaned
 
 
 def render_strategy_control() -> str:
