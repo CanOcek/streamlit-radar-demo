@@ -909,6 +909,23 @@ def render_findings(result: dict[str, Any] | None) -> None:
         render_list_block("Top Opportunities", result.get("top_opportunities", []))
     with col2:
         render_list_block("Top Risks", result.get("top_risks", []))
+
+def badge_html(text: str, bg_color: str) -> str:
+    return f"""
+    <span style="
+        background-color:{bg_color};
+        color:white;
+        padding:4px 10px;
+        border-radius:12px;
+        font-size:12px;
+        font-weight:600;
+        display:inline-block;
+        margin-right:6px;
+        margin-bottom:4px;
+    ">
+        {text}
+    </span>
+    """
 def render_evidence_rows(
     rows: list[dict[str, Any]],
     include_secondary_categories: bool = True,
@@ -918,30 +935,41 @@ def render_evidence_rows(
         st.info("No retrieved evidence available.")
         return
 
-    render_category_summary(rows, include_secondary_categories)
+    # removed category summary table on top
 
     for row in rows:
         title = row.get("title") or row.get("heading") or "Untitled"
         secondary_categories = row.get("secondary_categories") or []
 
+        bucket = row.get("bucket") or "-"
+        direction = row.get("direction") or "-"
+        confidence = row.get("confidence") or "-"
+
         with st.expander(f"{row.get('company') or '-'} - {title}"):
-            col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
+            # Top metadata row
+            top_html = (
+                badge_html(bucket, bucket_color(bucket))
+                + badge_html(direction, direction_color(direction))
+                + f'<span style="font-weight:600; font-size:13px; margin-right:6px;">Confidence:</span>'
+                + badge_html(confidence, confidence_color(confidence))
+            )
+            st.markdown(top_html, unsafe_allow_html=True)
 
-            with col1:
-                badge(row.get("bucket") or "-", bucket_color(row.get("bucket") or ""))
+            # Categories row
+            cat_col1, cat_col2 = st.columns(2)
 
-            with col2:
-                badge(row.get("direction") or "-", direction_color(row.get("direction") or ""))
+            with cat_col1:
+                st.markdown(f"**Primary category**")
+                st.write(row.get("category") or "-")
 
-            with col3:
-                badge(row.get("confidence") or "-", confidence_color(row.get("confidence") or ""))
+            with cat_col2:
+                st.markdown("**Secondary categories**")
+                if include_secondary_categories and secondary_categories:
+                    st.write(", ".join(secondary_categories))
+                else:
+                    st.write("-")
 
-            with col4:
-                st.markdown(f"**Primary category:** {row.get('category') or '-'}")
-
-            if include_secondary_categories and secondary_categories:
-                st.markdown(f"**Secondary categories:** {', '.join(secondary_categories)}")
-
+            # Source info
             st.markdown(f"**Date:** {row.get('date') or '-'}")
             st.markdown(f"**Source:** {row.get('raw_url') or '-'}")
 
