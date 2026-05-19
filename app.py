@@ -920,8 +920,7 @@ def badge_html(text: str, bg_color: str) -> str:
         font-size:12px;
         font-weight:600;
         display:inline-block;
-        margin-right:6px;
-        margin-bottom:4px;
+        white-space:nowrap;
     ">
         {text}
     </span>
@@ -935,30 +934,40 @@ def render_evidence_rows(
         st.info("No retrieved evidence available.")
         return
 
-    # removed category summary table on top
-
     for row in rows:
         title = row.get("title") or row.get("heading") or "Untitled"
         secondary_categories = row.get("secondary_categories") or []
 
-        bucket = (row.get("bucket") or "-").capitalize()
-        direction = (row.get("direction") or "-").capitalize()
-        confidence = (row.get("confidence") or "-").capitalize()
+        # raw values for color logic
+        bucket_raw = (row.get("bucket") or "-").strip().lower()
+        direction_raw = (row.get("direction") or "-").strip().lower()
+        confidence_raw = (row.get("confidence") or "-").strip().lower()
+
+        # display labels
+        bucket_label = bucket_raw.capitalize() if bucket_raw != "-" else "-"
+        direction_label = direction_raw.capitalize() if direction_raw != "-" else "-"
+        confidence_text = confidence_label(confidence_raw)
 
         with st.expander(f"{row.get('company') or '-'} - {title}"):
-            # Top metadata row
-            top_html = (
-                    badge_html(bucket, bucket_color(bucket))
-                    + badge_html(direction, direction_color(direction))
-                    + badge_html(confidence_label(confidence), confidence_color(confidence))
-            )
+            top_html = f"""
+            <div style="
+                display:flex;
+                flex-wrap:wrap;
+                align-items:center;
+                gap:6px;
+                margin-bottom:10px;
+            ">
+                {badge_html(bucket_label, bucket_color(bucket_raw))}
+                {badge_html(direction_label, direction_color(direction_raw))}
+                {badge_html(confidence_text, confidence_color(confidence_raw))}
+            </div>
+            """
             st.markdown(top_html, unsafe_allow_html=True)
 
-            # Categories row
             cat_col1, cat_col2 = st.columns(2)
 
             with cat_col1:
-                st.markdown(f"**Primary category**")
+                st.markdown("**Primary category**")
                 st.write(row.get("category") or "-")
 
             with cat_col2:
@@ -968,7 +977,6 @@ def render_evidence_rows(
                 else:
                     st.write("-")
 
-            # Source info
             st.markdown(f"**Date:** {row.get('date') or '-'}")
             st.markdown(f"**Source:** {row.get('raw_url') or '-'}")
 
@@ -1172,7 +1180,7 @@ def direction_color(direction: str) -> str:
         return "#2E8B57"
     if value == "risk":
         return "#B22222"
-    return "#6c757d"
+    return "#4b5563"
 
 
 def bucket_color(bucket: str) -> str:
