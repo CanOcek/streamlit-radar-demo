@@ -941,17 +941,16 @@ def render_evidence_rows(
         title = row.get("title") or row.get("heading") or "Untitled"
         secondary_categories = row.get("secondary_categories") or []
 
-        bucket = row.get("bucket") or "-"
-        direction = row.get("direction") or "-"
-        confidence = row.get("confidence") or "-"
+        bucket = (row.get("bucket") or "-").capitalize()
+        direction = (row.get("direction") or "-").capitalize()
+        confidence = (row.get("confidence") or "-").capitalize()
 
         with st.expander(f"{row.get('company') or '-'} - {title}"):
             # Top metadata row
             top_html = (
-                badge_html(bucket, bucket_color(bucket))
-                + badge_html(direction, direction_color(direction))
-                + f'<span style="font-weight:600; font-size:13px; margin-right:6px;">Confidence:</span>'
-                + badge_html(confidence, confidence_color(confidence))
+                    badge_html(bucket, bucket_color(bucket))
+                    + badge_html(direction, direction_color(direction))
+                    + badge_html(confidence_label(confidence), confidence_color(confidence))
             )
             st.markdown(top_html, unsafe_allow_html=True)
 
@@ -1148,6 +1147,13 @@ def badge(text: str, bg_color: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+
+def confidence_label(confidence: str) -> str:
+    value = (confidence or "").strip().lower()
+    if not value:
+        return "-"
+    return f"{value.capitalize()} confidence"
+
 
 def confidence_color(confidence: str) -> str:
     value = (confidence or "").strip().lower()
