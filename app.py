@@ -910,21 +910,6 @@ def render_findings(result: dict[str, Any] | None) -> None:
     with col2:
         render_list_block("Top Risks", result.get("top_risks", []))
 
-def badge_html(text: str, bg_color: str) -> str:
-    return f"""
-    <span style="
-        background-color:{bg_color};
-        color:white;
-        padding:4px 10px;
-        border-radius:12px;
-        font-size:12px;
-        font-weight:600;
-        display:inline-block;
-        white-space:nowrap;
-    ">
-        {text}
-    </span>
-    """
 def render_evidence_rows(
     rows: list[dict[str, Any]],
     include_secondary_categories: bool = True,
@@ -949,20 +934,16 @@ def render_evidence_rows(
         confidence_text = confidence_label(confidence_raw)
 
         with st.expander(f"{row.get('company') or '-'} - {title}"):
-            top_html = f"""
-            <div style="
-                display:flex;
-                flex-wrap:wrap;
-                align-items:center;
-                gap:6px;
-                margin-bottom:10px;
-            ">
-                {badge_html(bucket_label, bucket_color(bucket_raw))}
-                {badge_html(direction_label, direction_color(direction_raw))}
-                {badge_html(confidence_text, confidence_color(confidence_raw))}
-            </div>
-            """
-            st.markdown(top_html, unsafe_allow_html=True)
+            meta1, meta2, meta3, _ = st.columns([1, 1, 1.4, 3])
+
+            with meta1:
+                badge(bucket_label, bucket_color(bucket_raw))
+
+            with meta2:
+                badge(direction_label, direction_color(direction_raw))
+
+            with meta3:
+                badge(confidence_text, confidence_color(confidence_raw))
 
             cat_col1, cat_col2 = st.columns(2)
 
