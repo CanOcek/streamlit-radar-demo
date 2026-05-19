@@ -257,8 +257,8 @@ def main() -> None:
         rows=rows,
         signals=signals,
         result=result,
-        scope_companies=effective_companies,
-        scope_categories=effective_categories,
+        scope_companies=scope_companies,
+        scope_categories=scope_categories,
     )
 
 
@@ -552,7 +552,7 @@ def render_workspace(
             return
 
     tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials, tab_patents = st.tabs(
-        ["Overview", "Findings", "Evidence", "Company Structure", "Financials", "Patents&Trademarks"]
+        ["Overview", "Findings", "Evidence", "Company Structure", "Financial Metrics", "Patents & Trademarks"]
     )
 
     with tab_overview:
@@ -931,33 +931,57 @@ def render_findings(result: dict[str, Any] | None) -> None:
     with col2:
         render_list_block("Top Risks", result.get("top_risks", []))
 
-
 def render_evidence_rows(
     rows: list[dict[str, Any]],
-    include_secondary_categories: bool,
+    include_secondary_categories: bool = True,
 ) -> None:
     st.subheader("Underlying LLM1 Evidence")
     if not rows:
         st.info("No retrieved evidence available.")
         return
 
-    render_category_summary(
-        rows,
-        include_secondary_categories=include_secondary_categories,
-    )
     for row in rows:
         title = row.get("title") or row.get("heading") or "Untitled"
+        secondary_categories = row.get("secondary_categories") or []
+
+        # raw values for color logic
+        bucket_raw = (row.get("bucket") or "-").strip().lower()
+        direction_raw = (row.get("direction") or "-").strip().lower()
+        confidence_raw = (row.get("confidence") or "-").strip().lower()
+
+        # display labels
+        bucket_label = bucket_raw.capitalize() if bucket_raw != "-" else "-"
+        direction_label = direction_raw.capitalize() if direction_raw != "-" else "-"
+        confidence_text = confidence_label(confidence_raw)
+
         with st.expander(f"{row.get('company') or '-'} - {title}"):
-            col1, col2, col3 = st.columns([1, 1, 3])
-            with col1:
-                badge(row.get("bucket") or "-", bucket_color(row.get("bucket") or ""))
-            with col2:
-                badge(row.get("direction") or "-", direction_color(row.get("direction") or ""))
-            with col3:
-                st.markdown(f"**Category:** {row.get('category') or '-'}")
+            meta1, meta2, meta3, _ = st.columns([1, 1, 1.4, 3])
+
+            with meta1:
+                badge(bucket_label, bucket_color(bucket_raw))
+
+            with meta2:
+                badge(direction_label, direction_color(direction_raw))
+
+            with meta3:
+                badge(confidence_text, confidence_color(confidence_raw))
+
+            cat_col1, cat_col2 = st.columns(2)
+
+            with cat_col1:
+                st.markdown("**Primary category**")
+                st.write(row.get("category") or "-")
+
+            with cat_col2:
+                st.markdown("**Secondary categories**")
+                if include_secondary_categories and secondary_categories:
+                    st.write(", ".join(secondary_categories))
+                else:
+                    st.write("-")
 
             st.markdown(f"**Date:** {row.get('date') or '-'}")
             st.markdown(f"**Source:** {row.get('raw_url') or '-'}")
+
             st.caption(
                 " | ".join(
                     [
@@ -968,12 +992,12 @@ def render_evidence_rows(
                     ]
                 )
             )
+
             _write_text_block("Short summary", row.get("short_summary"))
             _write_text_block("Evidence", row.get("evidence"))
             _write_text_block("Why it matters for PNTN", row.get("why_it_matters_for_pntn"))
             _write_text_block("Possible business suggestion", row.get("possible_business_suggestion"))
             _write_text_block("Full raw content", row.get("raw_content"))
-
 
 def render_category_summary(
     rows: list[dict[str, Any]],
@@ -1134,6 +1158,23 @@ def badge(text: str, bg_color: str) -> None:
         unsafe_allow_html=True,
     )
 
+def confidence_label(confidence: str) -> str:
+    value = (confidence or "").strip().lower()
+    if not value:
+        return "-"
+    return f"{value.capitalize()} confidence"
+
+
+def confidence_color(confidence: str) -> str:
+    value = (confidence or "").strip().lower()
+    if value == "high":
+        return "#2563eb"   # blue
+    if value == "medium":
+        return "#6b7280"   # gray
+    if value == "low":
+        return "#9ca3af"   # light gray
+    return "#6c757d"
+
 
 def direction_color(direction: str) -> str:
     value = (direction or "").strip().lower()
@@ -1141,7 +1182,7 @@ def direction_color(direction: str) -> str:
         return "#2E8B57"
     if value == "risk":
         return "#B22222"
-    return "#6c757d"
+    return "#4b5563"
 
 
 def bucket_color(bucket: str) -> str:
