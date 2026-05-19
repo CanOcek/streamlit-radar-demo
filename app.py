@@ -910,33 +910,39 @@ def render_findings(result: dict[str, Any] | None) -> None:
     with col2:
         render_list_block("Top Risks", result.get("top_risks", []))
 
-
-def render_evidence_rows(
-    rows: list[dict[str, Any]],
-    include_secondary_categories: bool,
-) -> None:
+def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
     st.subheader("Underlying LLM1 Evidence")
     if not rows:
         st.info("No retrieved evidence available.")
         return
 
-    render_category_summary(
-        rows,
-        include_secondary_categories=include_secondary_categories,
-    )
+    render_category_summary(rows)
+
     for row in rows:
         title = row.get("title") or row.get("heading") or "Untitled"
+        secondary_categories = row.get("secondary_categories") or []
+
         with st.expander(f"{row.get('company') or '-'} - {title}"):
-            col1, col2, col3 = st.columns([1, 1, 3])
+            col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
+
             with col1:
                 badge(row.get("bucket") or "-", bucket_color(row.get("bucket") or ""))
+
             with col2:
                 badge(row.get("direction") or "-", direction_color(row.get("direction") or ""))
+
             with col3:
-                st.markdown(f"**Category:** {row.get('category') or '-'}")
+                badge(row.get("confidence") or "-", confidence_color(row.get("confidence") or ""))
+
+            with col4:
+                st.markdown(f"**Primary category:** {row.get('category') or '-'}")
+
+            if secondary_categories:
+                st.markdown(f"**Secondary categories:** {', '.join(secondary_categories)}")
 
             st.markdown(f"**Date:** {row.get('date') or '-'}")
             st.markdown(f"**Source:** {row.get('raw_url') or '-'}")
+
             st.caption(
                 " | ".join(
                     [
@@ -947,6 +953,7 @@ def render_evidence_rows(
                     ]
                 )
             )
+
             _write_text_block("Short summary", row.get("short_summary"))
             _write_text_block("Evidence", row.get("evidence"))
             _write_text_block("Why it matters for PNTN", row.get("why_it_matters_for_pntn"))
@@ -1112,6 +1119,16 @@ def badge(text: str, bg_color: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+
+def confidence_color(confidence: str) -> str:
+    value = (confidence or "").strip().lower()
+    if value == "high":
+        return "#2563eb"   # blue
+    if value == "medium":
+        return "#6b7280"   # gray
+    if value == "low":
+        return "#9ca3af"   # light gray
+    return "#6c757d"
 
 
 def direction_color(direction: str) -> str:
