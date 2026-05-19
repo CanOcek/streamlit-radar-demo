@@ -531,7 +531,7 @@ def render_workspace(
             return
 
     tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials, tab_patents = st.tabs(
-        ["Overview", "Findings", "Evidence", "Company Structure", "Financials", "Patents&Trademarks"]
+        ["Overview", "Findings", "Evidence", "Company Structure", "Financial Metrics", "Patents & Trademarks"]
     )
 
     with tab_overview:
