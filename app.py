@@ -236,8 +236,8 @@ def main() -> None:
         rows=rows,
         signals=signals,
         result=result,
-        scope_companies=effective_companies,
-        scope_categories=effective_categories,
+        scope_companies=scope_companies,
+        scope_categories=scope_categories,
     )
 
 
@@ -909,14 +909,16 @@ def render_findings(result: dict[str, Any] | None) -> None:
         render_list_block("Top Opportunities", result.get("top_opportunities", []))
     with col2:
         render_list_block("Top Risks", result.get("top_risks", []))
-
-def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
+def render_evidence_rows(
+    rows: list[dict[str, Any]],
+    include_secondary_categories: bool = True,
+) -> None:
     st.subheader("Underlying LLM1 Evidence")
     if not rows:
         st.info("No retrieved evidence available.")
         return
 
-    render_category_summary(rows)
+    render_category_summary(rows, include_secondary_categories)
 
     for row in rows:
         title = row.get("title") or row.get("heading") or "Untitled"
@@ -937,7 +939,7 @@ def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
             with col4:
                 st.markdown(f"**Primary category:** {row.get('category') or '-'}")
 
-            if secondary_categories:
+            if include_secondary_categories and secondary_categories:
                 st.markdown(f"**Secondary categories:** {', '.join(secondary_categories)}")
 
             st.markdown(f"**Date:** {row.get('date') or '-'}")
@@ -959,7 +961,6 @@ def render_evidence_rows(rows: list[dict[str, Any]]) -> None:
             _write_text_block("Why it matters for PNTN", row.get("why_it_matters_for_pntn"))
             _write_text_block("Possible business suggestion", row.get("possible_business_suggestion"))
             _write_text_block("Full raw content", row.get("raw_content"))
-
 
 def render_category_summary(
     rows: list[dict[str, Any]],
