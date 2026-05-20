@@ -154,6 +154,29 @@ def inject_dashboard_styles() -> None:
             font-size: 0.95rem;
             margin-top: 4px;
         }
+        .summary-metric-card {
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            padding: 16px 18px;
+            background: rgba(255,255,255,0.02);
+            min-height: 108px;
+        }
+        
+        .summary-metric-label {
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: rgba(255,255,255,0.58);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .summary-metric-value {
+            font-size: 2rem;
+            line-height: 1.15;
+            font-weight: 700;
+            color: rgba(255,255,255,0.96);
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1021,6 +1044,17 @@ def is_only_legal_selected(scope_categories: list[str]) -> bool:
     categories = [normalize_category_name(c) for c in scope_categories if c]
     return len(categories) == 1 and categories[0] == "Legal & C-Level Updates"
 
+def render_summary_metric_card(label: str, value: str) -> None:
+    st.markdown(
+        f"""
+        <div class="summary-metric-card">
+            <div class="summary-metric-label">{label}</div>
+            <div class="summary-metric-value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 def render_overview(
     result: dict[str, Any] | None,
     scope_categories: list[str],
@@ -1039,21 +1073,20 @@ def render_overview(
     if result:
         render_position_summary(result)
 
-        # 2) Metrics row
+        # 2) Custom summary cards
         c1, c2, c3 = st.columns(3)
 
         with c1:
             if len(selected_directions) == 1:
-                st.metric("Chosen Direction", selected_directions[0].capitalize())
+                render_summary_metric_card("Chosen Direction", selected_directions[0].capitalize())
             else:
-                st.metric("Overall Direction", result.get("overall_direction", "-"))
+                render_summary_metric_card("Overall Direction", str(result.get("overall_direction", "-")).capitalize())
 
         with c2:
-            st.metric("Overall Confidence", result.get("overall_confidence", "-"))
+            render_summary_metric_card("Overall Confidence", str(result.get("overall_confidence", "-")).capitalize())
 
         with c3:
-            st.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
-
+            render_summary_metric_card("Signal Count", str(result.get("_meta", {}).get("signal_count", "-")))
         st.markdown("")
 
         # 3) Priority sections
