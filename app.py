@@ -402,7 +402,7 @@ def main() -> None:
 
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-    btn_col1, btn_col2 = st.columns([0.78, 0.95, 3.9], gap="small")
+    btn_col1, btn_col2, _ = st.columns([0.78, 0.95, 3.9], gap="small")
 
     with btn_col1:
         retrieve_clicked = st.button(
