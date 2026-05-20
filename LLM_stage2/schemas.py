@@ -16,6 +16,8 @@ class Stage1Signal:
     direction: str
     possible_business_suggestion: str
     confidence: str
+    pntn_fit_check: str = ""
+    signal_strength: str = ""
     page_type: str = ""
     source_type: str = ""
     url: str = ""

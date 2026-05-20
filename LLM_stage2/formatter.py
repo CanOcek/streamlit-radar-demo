@@ -11,6 +11,9 @@ def _format_signal_block(signal: Stage1Signal, idx: int) -> str:
 Signal {idx}
 Company: {signal.company}
 Bucket: {signal.bucket}
+Signal strength: {signal.signal_strength or "N/A"}
+Confidence: {signal.confidence or "N/A"}
+PNTN fit check: {signal.pntn_fit_check or "N/A"}
 Date: {signal.date or "N/A"}
 Primary category: {signal.category}
 Secondary categories: {secondary}
@@ -31,7 +34,6 @@ Direction:
 Possible business suggestion:
 {signal.possible_business_suggestion or "N/A"}
 """.strip()
-
 
 def format_signals_for_stage2(
     signals: List[Stage1Signal],

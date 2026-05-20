@@ -29,6 +29,8 @@ def retrieval_row_to_stage1_signal(row: dict[str, Any]) -> Stage1Signal:
         direction=row.get("direction") or "",
         possible_business_suggestion=row.get("possible_business_suggestion") or "",
         confidence=row.get("confidence") or "",
+        pntn_fit_check=row.get("pntn_fit_check") or "",
+        signal_strength=row.get("signal_strength") or "",
         page_type=row.get("page_type") or "",
         source_type=row.get("source_type") or "",
         url=row.get("raw_url") or "",

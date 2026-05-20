@@ -16,5 +16,6 @@ def get_db_connection():
         dbname=get_setting("POSTGRES_DB", "neondb"),
         user=get_setting("POSTGRES_USER"),
         password=get_setting("POSTGRES_PASSWORD"),
-        sslmode=get_setting("POSTGRES_SSLMODE", "require"),
+        sslmode=get_setting("POSTGRES_SSLMODE", "disable"),
+        gssencmode="disable",
     )

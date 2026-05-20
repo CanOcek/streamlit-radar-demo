@@ -51,20 +51,32 @@ Before grouping signals, apply these checks:
   Example of an incorrect risk: "Integration complexity may cause delays for the company."
 - If you cannot identify a genuine top_opportunity from the signals provided,
   return an empty top_opportunities list rather than inventing speculative ones.
-- When assessing top_opportunities, do not rely solely on LLM1 pntn_fit_check values.
-  Use your own judgment based on the aggregated signals.
-  If a confirmed acquisition, migration, or platform rollout is described and the
-  complexity clearly implies a need for external system integration, digital platform
-  support, or transformation enablement — that qualifies as a top_opportunity even
-  if individual LLM1 signals were marked neutral.
-- A finding labeled direction=risk can still generate a top_opportunity if the
-  risk finding also contains explicit evidence of scale, multi-market rollout,
-  or complexity that implies potential future external support needs.
-  Risk and opportunity are not mutually exclusive at finding level.
-  overall_direction=mixed means both top_opportunities AND top_risks should
-  be populated, not one or the other.
-- If overall_direction is mixed, leaving top_opportunities empty is almost
-  always wrong. Find the opportunity angle from within the findings.
+- grouped_findings may be promoted above the raw chunk-level labels only when
+  multiple signals consistently describe the same broader company-level pattern.
+- A grouped finding may be labeled opportunity even if some supporting LLM1 signals
+  are neutral, but only when at least two signals independently point to the same
+  concrete PNTN-relevant company-side change surface, such as:
+  - customer-facing digital service rollout
+  - service/platform enablement
+  - subscription/service-model rollout
+  - ecosystem/platform integration
+  - operational transformation within PNTN scope
+- Do NOT promote a grouped finding to opportunity if the underlying signals mainly
+  reflect:
+  - product-side feature enhancement
+  - core-product engineering
+  - showcase/demo communication
+  - vague strategic potential without a clear rollout/integration/service surface
+- top_opportunities must be derived only from grouped_findings whose direction is opportunity.
+- top_risks must be derived only from grouped_findings whose direction is risk.
+- If no grouped finding clearly qualifies as opportunity, return an empty top_opportunities list.
+- If no grouped finding clearly qualifies as risk, return an empty top_risks list.
+- overall_direction should be:
+  - opportunity only if the dominant grouped findings are opportunity-oriented
+  - risk only if the dominant grouped findings are risk-oriented
+  - neutral if the findings are mainly monitoring/informational
+  - mixed only if there is clear evidence for both meaningful opportunity and meaningful risk findings
+``
 """
 
 
