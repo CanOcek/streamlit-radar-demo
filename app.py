@@ -316,11 +316,30 @@ def main() -> None:
     inject_button_styles()
     inject_dashboard_styles()
     st.markdown(
-        '<h1 style="font-size:1.75rem; font-weight:800; letter-spacing:-0.01em; margin-bottom:2px;">Business Development Radar</h1>',
+        """
+        <div style="margin-bottom: 14px;">
+            <div style="
+                font-size: 2.25rem;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+                line-height: 1.1;
+                color: rgba(255,255,255,0.98);
+                margin-bottom: 8px;
+            ">
+                Business Development Radar
+            </div>
+            <div style="
+                font-size: 1.02rem;
+                color: rgba(255,255,255,0.62);
+                line-height: 1.5;
+                max-width: 950px;
+            ">
+                Identify where to focus: key opportunities, emerging opportunities, risks, and the evidence behind them.
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
-    st.caption("Choose companies and categories from the sidebar, retrieve evidence, and generate a synthesis.")
-
     db_options, db_error = load_filter_options()
     if db_error:
         st.warning(f"Could not load live filter options from Postgres: {db_error}")
