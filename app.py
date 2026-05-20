@@ -426,7 +426,7 @@ def main() -> None:
 
     with btn_col1:
         retrieve_clicked = st.button(
-            "① Get Evidence",
+            "① Evidence",
             type="primary",
             use_container_width=True,
             help="Fetches matching signals from the database based on your sidebar filters.",
@@ -434,7 +434,7 @@ def main() -> None:
 
     with btn_col2:
         synthesize_clicked = st.button(
-            "② Run Synthesis",
+            "② Synthesis",
             type="primary" if can_synthesize else "secondary",
             use_container_width=True,
             help="Runs AI analysis on the retrieved evidence to generate findings and opportunities. Requires evidence first.",
