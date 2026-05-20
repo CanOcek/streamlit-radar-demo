@@ -186,7 +186,6 @@ def inject_dashboard_styles() -> None:
             font-weight: 800;
             color: rgba(255,255,255,0.98);
         }
-        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1301,17 +1300,26 @@ def render_findings(result: dict[str, Any] | None) -> None:
         st.info("Run LLM2 synthesis to see grouped findings.")
         return
 
-    st.subheader("Grouped Findings")
-    render_grouped_findings(result.get("grouped_findings", []))
-
-    st.divider()
-
+    # 1) Start with the business-relevant summary, same visual role as Key Takeaways
+    section_heading(
+        "Where to Focus",
+        "Most relevant opportunities, early watchpoints, and risks for business development."
+    )
     render_dynamic_priority_sections(result)
 
-    st.divider()
+    st.markdown("")
 
+    # 2) Then explain the reasoning behind those areas
+    section_heading(
+        "Why These Matter",
+        "Grouped company-level findings derived from the underlying evidence."
+    )
+    render_grouped_finding_cards(result.get("grouped_findings", []))
+
+    st.markdown("")
+
+    # 3) Suggested actions last
     render_follow_up_expander(result)
-
 
 
 def render_evidence_rows(
@@ -1482,6 +1490,55 @@ def format_table_columns(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _readable_column_name(name: str) -> str:
     readable = name.replace("_", " ")
     return readable[:1].upper() + readable[1:]
+
+def render_grouped_finding_cards(findings: list[dict[str, Any]]) -> None:
+    if not findings:
+        st.caption("No grouped findings available.")
+        return
+
+    for finding in findings:
+        title = finding.get("title", "Untitled")
+        fid = finding.get("finding_id", "")
+        direction = finding.get("direction", "")
+        confidence = finding.get("confidence", "")
+        categories = finding.get("categories", [])
+        titles = finding.get("supporting_signal_titles", [])
+
+        with st.container(border=True):
+            # Title row
+            st.markdown(f"### {fid} · {title}")
+
+            # Meta row
+            meta1, meta2, meta3 = st.columns([1.1, 1.2, 3])
+
+            with meta1:
+                badge(direction.capitalize() if direction else "-", direction_color(direction))
+
+            with meta2:
+                badge(f"{confidence.capitalize()} confidence" if confidence else "-", confidence_color(confidence))
+
+            with meta3:
+                if categories:
+                    st.markdown(f"**Categories:** {', '.join(categories)}")
+                else:
+                    st.markdown("**Categories:** -")
+
+            st.markdown("")
+
+            # Main content blocks
+            st.markdown("**What is happening**")
+            st.write(finding.get("summary", ""))
+
+            st.markdown("**Why it matters for PNTN**")
+            st.write(finding.get("why_it_matters_for_pntn", ""))
+
+            if titles:
+                with st.expander("Supporting signals"):
+                    for signal_title in titles:
+                        st.markdown(f"- {signal_title}")
+
+            st.markdown("")
+
 
 def render_grouped_findings(findings: list[dict[str, Any]]) -> None:
         if not findings:
