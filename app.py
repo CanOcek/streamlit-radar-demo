@@ -62,6 +62,27 @@ CONFIDENCE_OPTIONS = ["high", "medium", "low"]
 SIGNAL_STRENGTH_OPTIONS = ["strong", "medium", ""]
 CHUNK_SCOPE_OPTIONS = ["webpage_chunk", "pdf_chunk"]
 
+FULL_COMPANY_NAMES = {
+    "BMW": "Bayerische Motoren Werke AG",
+    "Ehrmann": "Ehrmann SE",
+    "Berlin Airport": "Flughafen Berlin Brandenburg GmbH",
+    "Stiebel Eltron": "Stiebel Eltron GmbH & Co. KG",
+    "Penny": "Penny Markt GmbH",
+    "Epson": "Epson Deutschland GmbH",
+    "B. Braun": "B. Braun SE",
+    "AIDA": "AIDA Cruises - German Branch of Costa Crociere S.p.A.",
+    "Dertour": "Dertour Central Europe GmbH",
+    "EON": "E.ON SE",
+    "ECE": "ECE Group GmbH & Co. KG",
+    "Greiner Bio One": "Greiner AG & Co. KG",
+    "Lufthansa": "Deutsche Lufthansa AG",
+    "Olympus": "Olympus Europa SE & Co. KG",
+    "Raiffeisen": "Raiffeisen Bank International AG",
+    "Scalable Capital": "Scalable Capital Bank GmbH",
+    "Smart": "smart Europe GmbH",
+    "Stiftung Warentest": "Stiftung Warentest",
+    "BNP Paribas": "BNP Paribas SA Niederlassung Deutschland"
+}
 
 st.set_page_config(page_title="Business Development Radar", layout="wide")
 
@@ -702,7 +723,7 @@ def render_financial_context_preview(financials: list[tuple[str, Any]]) -> None:
         employees = get_indicator(items, "Employees")
 
         with st.container(border=True):
-            st.markdown(f"**{company_name}** · FY{period}")
+            st.markdown(f"**{FULL_COMPANY_NAMES.get(company_name, company_name)}** · FY{period}")
             k1, k2, k3, k4, k5 = st.columns(5)
             with k1:
                 st.metric("Revenue", revenue or "—")
