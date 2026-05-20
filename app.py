@@ -1346,23 +1346,22 @@ def render_findings(result: dict[str, Any] | None) -> None:
         return
 
     section_heading(
-        "Why These Matter",
-        "Grouped company-level findings derived from the underlying evidence."
+        "Findings from Retrieved Evidence",
+        "Grouped company developments synthesized from the underlying evidence signals."
     )
     render_grouped_finding_cards(result.get("grouped_findings", []))
 
     st.markdown("")
 
     section_heading(
-        "Where to Focus",
-        "Open only the sections you want to review in detail."
+        "Based on These Findings, Where to Focus",
+        "Commercially relevant opportunities, promising watchpoints, and risks for business development."
     )
-    render_priority_expanders(result)
+    render_dynamic_priority_sections(result)
 
     st.markdown("")
 
     render_follow_up_expander(result)
-
 
 
 def render_evidence_rows(
@@ -1548,10 +1547,8 @@ def render_grouped_finding_cards(findings: list[dict[str, Any]]) -> None:
         titles = finding.get("supporting_signal_titles", [])
 
         with st.container(border=True):
-            # Title row
             st.markdown(f"### {fid} · {title}")
 
-            # Meta row
             meta1, meta2, meta3 = st.columns([1.1, 1.2, 3])
 
             with meta1:
@@ -1568,11 +1565,10 @@ def render_grouped_finding_cards(findings: list[dict[str, Any]]) -> None:
 
             st.markdown("")
 
-            # Main content blocks
-            st.markdown("**What is happening**")
+            st.markdown("**Finding**")
             st.write(finding.get("summary", ""))
 
-            st.markdown("**Why it matters for PNTN**")
+            st.markdown("**Business development relevance**")
             st.write(finding.get("why_it_matters_for_pntn", ""))
 
             if titles:
