@@ -857,6 +857,23 @@ def render_ranked_section(title: str, items: list[dict[str, Any]], empty_text: s
             if item.get("reason"):
                 st.write(item["reason"])
 
+def section_title_html(title: str, color: str) -> None:
+    st.markdown(
+        f"""
+        <div style="
+            font-size: 0.92rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: {color};
+            margin-bottom: 10px;
+            margin-top: 4px;
+        ">
+            {title}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def render_priority_sections(result: dict[str, Any]) -> None:
     top_opportunities = result.get("top_opportunities", [])
@@ -886,26 +903,24 @@ def render_priority_sections(result: dict[str, Any]) -> None:
         )
 def render_priority_sidebar_sections(result: dict[str, Any]) -> None:
     sections = [
-        ("Top Opportunities", result.get("top_opportunities", []), "No confirmed top opportunities at this stage."),
-        ("Emerging Opportunities", result.get("emerging_opportunities", []), "No emerging opportunities identified."),
-        ("Top Risks", result.get("top_risks", []), "No key risks identified."),
+        ("Top Opportunities", result.get("top_opportunities", []), "#2E8B57"),
+        ("Emerging Opportunities", result.get("emerging_opportunities", []), "#B5A800"),
+        ("Top Risks", result.get("top_risks", []), "#B22222"),
     ]
 
     shown_any = False
 
-    for title, items, empty_text in sections:
-        # only show section if it has items OR if you explicitly want a small empty note
+    for title, items, color in sections:
         if not items:
             continue
 
         shown_any = True
-        st.subheader(title)
+        section_title_html(title, color)
         render_insight_items(items)
         st.markdown("")
 
     if not shown_any:
         st.caption("No key opportunities or risks identified for the selected scope.")
-
 
 def render_follow_up_block(result: dict[str, Any]) -> None:
     follow_up = result.get("recommended_follow_up", [])
@@ -933,39 +948,40 @@ def render_insight_items(items: list[dict[str, Any]]) -> None:
         )
 
 
-
 def render_dynamic_priority_sections(result: dict[str, Any]) -> None:
     sections = [
-        ("Top Opportunities", result.get("top_opportunities", [])),
-        ("Emerging Opportunities", result.get("emerging_opportunities", [])),
-        ("Top Risks", result.get("top_risks", [])),
+        ("Top Opportunities", result.get("top_opportunities", []), "#2E8B57"),
+        ("Emerging Opportunities", result.get("emerging_opportunities", []), "#B5A800"),
+        ("Top Risks", result.get("top_risks", []), "#B22222"),
     ]
 
-    non_empty_sections = [(title, items) for title, items in sections if items]
+    non_empty_sections = [(title, items, color) for title, items, color in sections if items]
 
-    # If nothing is there, show one small note only
     if not non_empty_sections:
-        st.markdown('<div class="small-empty">No key opportunities or risks identified for the selected scope.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="small-empty">No key opportunities or risks identified for the selected scope.</div>',
+            unsafe_allow_html=True,
+        )
         return
 
     if len(non_empty_sections) == 1:
-        title, items = non_empty_sections[0]
-        st.subheader(title)
+        title, items, color = non_empty_sections[0]
+        section_title_html(title, color)
         render_insight_items(items)
         return
 
     if len(non_empty_sections) == 2:
         col1, col2 = st.columns(2)
-        for col, (title, items) in zip([col1, col2], non_empty_sections):
+        for col, (title, items, color) in zip([col1, col2], non_empty_sections):
             with col:
-                st.subheader(title)
+                section_title_html(title, color)
                 render_insight_items(items)
         return
 
     col1, col2, col3 = st.columns(3)
-    for col, (title, items) in zip([col1, col2, col3], non_empty_sections):
+    for col, (title, items, color) in zip([col1, col2, col3], non_empty_sections):
         with col:
-            st.subheader(title)
+            section_title_html(title, color)
             render_insight_items(items)
 
 
