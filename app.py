@@ -95,9 +95,10 @@ def inject_button_styles() -> None:
         """
         <style>
         div.stButton > button {
-            padding: 0.04rem 0            font-size: 0.72rem !important;            padding: 0.04rem 0.38rem !important;
+            padding: 0.02rem 0.34rem !important;
+            font-size: 0.68rem !important;
             border-radius: 8px !important;
-            min-height: 1.72rem !important;
+            min-height: 1.58rem !important;
             line-height: 1.0 !important;
             white-space: nowrap !important;
             font-weight: 600 !important;
@@ -264,12 +265,11 @@ def inject_dashboard_styles() -> None:
         
         /* Tighten tab bar */
         div[data-testid="stTabs"] button[role="tab"] {
-            font-size: 0.88rem;
-            font-weight: 600;
-            padding: 8px 14px;
-            letter-spacing: 0.01em;
-        }
-        
+        font-size: 1.02rem;
+        font-weight: 700;
+        padding: 10px 16px;
+        letter-spacing: 0.01em;
+    }
         /* Suggested Actions expander — make it stand out a bit */
         .suggested-actions-label {
             font-size: 0.95rem;
@@ -422,7 +422,7 @@ def main() -> None:
 
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-    btn_col1, btn_col2, _ = st.columns([0.72, 0.72, 4.56], gap="small")
+    btn_col1, btn_col2, _ = st.columns([0.56, 0.56, 4.88], gap="small")
 
     with btn_col1:
         retrieve_clicked = st.button(
