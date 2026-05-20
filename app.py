@@ -156,26 +156,27 @@ def inject_dashboard_styles() -> None:
         }
         .summary-metric-card {
             border: 1px solid rgba(255,255,255,0.10);
-            border-radius: 14px;
-            padding: 16px 18px;
-            background: rgba(255,255,255,0.02);
-            min-height: 108px;
+            border-radius: 16px;
+            padding: 18px 20px;
+            background: rgba(255,255,255,0.025);
+            min-height: 126px;
         }
         
         .summary-metric-label {
-            font-size: 0.82rem;
+            font-size: 0.80rem;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
-            color: rgba(255,255,255,0.58);
-            font-weight: 600;
-            margin-bottom: 10px;
+            letter-spacing: 0.05em;
+            color: rgba(255,255,255,0.55);
+            font-weight: 700;
+            margin-bottom: 12px;
         }
         
         .summary-metric-value {
-            font-size: 2rem;
-            line-height: 1.15;
-            font-weight: 700;
-            color: rgba(255,255,255,0.96);
+            font-size: 2.45rem;
+            line-height: 1.05;
+            font-weight: 800;
+            color: rgba(255,255,255,0.98);
+        }
         }
         </style>
         """,
@@ -1054,6 +1055,25 @@ def render_summary_metric_card(label: str, value: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+def section_heading(title: str, subtitle: str | None = None) -> None:
+    st.markdown(
+        f"""
+        <div style="margin-top: 6px; margin-bottom: 14px;">
+            <div style="
+                font-size: 1.08rem;
+                font-weight: 700;
+                letter-spacing: 0.02em;
+                color: rgba(255,255,255,0.96);
+                margin-bottom: 4px;
+            ">
+                {title}
+            </div>
+            {f'<div style="font-size:0.95rem; color:rgba(255,255,255,0.58);">{subtitle}</div>' if subtitle else ""}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 def render_overview(
     result: dict[str, Any] | None,
@@ -1073,6 +1093,12 @@ def render_overview(
     if result:
         render_position_summary(result)
 
+        section_heading(
+            "BD Snapshot",
+            "Current assessment of commercial potential, confidence, and signal volume."
+        )
+
+        c1, c2, c3 = st.columns(3)
         # 2) Custom summary cards
         c1, c2, c3 = st.columns(3)
 
@@ -1090,9 +1116,12 @@ def render_overview(
         st.markdown("")
 
         # 3) Priority sections
+        section_heading(
+            "Priority Areas",
+            "Most relevant opportunities, early watchpoints, and risks for business development."
+        )
         render_dynamic_priority_sections(result)
 
-        st.markdown("")
 
         # 4) Suggested Actions stays small
         render_follow_up_expander(result)
