@@ -95,17 +95,18 @@ def inject_button_styles() -> None:
         """
         <style>
         div.stButton > button {
-            padding: 0.08rem 0.45rem !important;
-            font-size: 0.76rem !important;
+            padding: 0.04rem 0            font-size: 0.72rem !important;            padding: 0.04rem 0.38rem !important;
             border-radius: 8px !important;
-            min-height: 1.95rem !important;
+            min-height: 1.72rem !important;
             line-height: 1.0 !important;
             white-space: nowrap !important;
+            font-weight: 600 !important;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
+
 
 def inject_dashboard_styles() -> None:
     st.markdown(
@@ -421,7 +422,7 @@ def main() -> None:
 
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-    btn_col1, btn_col2, _ = st.columns([0.9, 0.9, 4.0], gap="small")
+    btn_col1, btn_col2, _ = st.columns([0.72, 0.72, 4.56], gap="small")
 
     with btn_col1:
         retrieve_clicked = st.button(
