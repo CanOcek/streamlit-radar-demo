@@ -441,7 +441,7 @@ def main() -> None:
         )
 
     st.markdown(
-        '<div style="font-size:0.76rem; color:rgba(255,255,255,0.35); margin-top:4px; margin-bottom:2px;">'
+        '<div style="font-size:0.8rem; color:rgba(255,255,255,0.35); margin-top:4px; margin-bottom:2px;">'
         'Run steps in order: get evidence first, then synthesize.'
         '</div>',
         unsafe_allow_html=True,
