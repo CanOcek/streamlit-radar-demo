@@ -552,7 +552,7 @@ def render_workspace(
             return
 
     tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials, tab_patents = st.tabs(
-        ["Overview", "Findings", "Evidence", "Company Structure", "Financial Metrics", "Patents & Trademarks"]
+        ["Key Takeaways", "Findings", "Evidence", "Company Structure", "Financial Metrics", "Patents & Trademarks"]
     )
 
     with tab_overview:
@@ -779,25 +779,82 @@ def is_legal_category_selected(scope_categories: list[str]) -> bool:
     normalized = {(c or "").replace("&amp;", "&").strip() for c in scope_categories}
     return "Legal & C-Level Updates" in normalized
 
+def render_ranked_section(title: str, items: list[dict[str, Any]], empty_text: str) -> None:
+    st.subheader(title)
+
+    if not items:
+        st.caption(empty_text)
+        return
+
+    for item in items[:3]:
+        with st.container(border=True):
+            st.markdown(f"**{item.get('title', 'Untitled')}**")
+            if item.get("reason"):
+                st.write(item["reason"])
+
+
+def render_priority_sections(result: dict[str, Any]) -> None:
+    top_opportunities = result.get("top_opportunities", [])
+    emerging_opportunities = result.get("emerging_opportunities", [])
+    top_risks = result.get("top_risks", [])
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        render_ranked_section(
+            "Top Opportunities",
+            top_opportunities,
+            "No confirmed top opportunities at this stage.",
+        )
+
+    with col2:
+        render_ranked_section(
+            "Emerging Opportunities",
+            emerging_opportunities,
+            "No emerging opportunities identified.",
+        )
+
+    with col3:
+        render_ranked_section(
+            "Top Risks",
+            top_risks,
+            "No key risks identified.",
+        )
+
+
+def render_follow_up_block(result: dict[str, Any]) -> None:
+    follow_up = result.get("recommended_follow_up", [])
+    if not follow_up:
+        return
+
+    st.subheader("Recommended Follow-Up")
+    for item in follow_up:
+        st.markdown(f"- {item}")
+
 def render_overview(result: dict[str, Any] | None) -> None:
     if not result:
         return
 
-    st.subheader("Executive Summary")
+    # First: what matters most for BD managers
+    render_priority_sections(result)
+
+    st.markdown("")
+
+    # Then: short interpretation
+    st.subheader("Current Position")
     st.write(result.get("executive_summary", ""))
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Overall Direction", result.get("overall_direction", "-"))
-    col2.metric("Overall Confidence", result.get("overall_confidence", "-"))
-    col3.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
+    st.markdown("")
 
-    st.subheader("Recommended Follow-Up")
-    follow_up = result.get("recommended_follow_up", [])
-    if follow_up:
-        for item in follow_up:
-            st.markdown(f"- {item}")
-    else:
-        st.info("No follow-up recommendations available.")
+    # Then: compact metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Overall Direction", result.get("overall_direction", "-"))
+    with col2:
+        st.metric("Overall Confidence", result.get("overall_confidence", "-"))
+    with col3:
+        st.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
+
 
 def info_pill(text: str, bg: str = "#2f3542", color: str = "#ffffff") -> None:
     st.markdown(
@@ -922,19 +979,19 @@ def render_findings(result: dict[str, Any] | None) -> None:
         st.info("Run LLM2 synthesis to see grouped findings.")
         return
 
+    # Show manager-relevant sections first
+    render_priority_sections(result)
+
+    st.markdown("")
+
+    # Then the grouped analytical layer
     st.subheader("Grouped Findings")
     render_grouped_findings(result.get("grouped_findings", []))
 
-    col1, col2, col3 = st.columns(3)
+    st.markdown("")
 
-    with col1:
-        render_list_block("Top Opportunities", result.get("top_opportunities", []))
-
-    with col2:
-        render_list_block("Emerging Opportunities", result.get("emerging_opportunities", []))
-
-    with col3:
-        render_list_block("Top Risks", result.get("top_risks", []))
+    # Follow-up comes last
+    render_follow_up_block(result)
 
 def render_evidence_rows(
     rows: list[dict[str, Any]],
