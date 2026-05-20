@@ -61,6 +61,7 @@ class Stage2Result:
     overall_confidence: str
     grouped_findings: List[GroupedFinding]
     top_opportunities: List[RankedItem]
+    emerging_opportunities: List[RankedItem]
     top_risks: List[RankedItem]
     recommended_follow_up: List[str]
 

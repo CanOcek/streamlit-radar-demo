@@ -21,7 +21,7 @@ Core rules:
 Your output must:
 1. provide a concise executive summary
 2. produce grouped findings as the main analytical layer
-3. derive top opportunities and top risks from those findings
+3. derive top opportunities, emerging opportunities, and top risks from those findings
 4. provide practical follow-up recommendations
 
 Important:
@@ -76,7 +76,31 @@ Before grouping signals, apply these checks:
   - risk only if the dominant grouped findings are risk-oriented
   - neutral if the findings are mainly monitoring/informational
   - mixed only if there is clear evidence for both meaningful opportunity and meaningful risk findings
-``
+
+
+EMERGING OPPORTUNITIES RULE:
+- emerging_opportunities are neutral grouped findings that are commercially promising
+  for PNTN but not yet strong enough to qualify as top_opportunities.
+- Only include a finding in emerging_opportunities if:
+  1. the grouped finding direction is neutral
+  2. the finding is supported by multiple signals or a clearly repeated pattern
+  3. the finding points to a concrete PNTN-relevant change surface such as:
+     - customer-facing digital platform or service rollout
+     - subscription/service-model enablement
+     - portal/app/configurator/service experience
+     - partner/platform integration
+     - remote diagnostics / remote service platform
+     - CRM / martech / content / rollout / localization / platform operations
+- Do NOT include findings that are mainly:
+  - product-side feature enhancements
+  - core-product engineering
+  - technical add-ons around the core offering
+  - showcase/demo communication
+  - vague future potential without a concrete delivery surface
+- emerging_opportunities must be derived only from grouped_findings whose direction is neutral.
+- Do not duplicate top_opportunities inside emerging_opportunities.
+- Return at most 3 emerging_opportunities.
+
 """
 
 
@@ -155,13 +179,21 @@ Return JSON in exactly this format:
       "supporting_signal_titles": []
     }}
   ],
-  "top_opportunities": [
-    {{
+ "top_opportunities": [
+    {
       "title": "",
       "companies": [],
       "categories": [],
       "reason": ""
-    }}
+    }
+  ],
+  "emerging_opportunities": [
+    {
+      "title": "",
+      "companies": [],
+      "categories": [],
+      "reason": ""
+    }
   ],
   "top_risks": [
     {{
@@ -180,6 +212,11 @@ Output guidance:
 - merge only genuinely related signals
 - use "shared_pattern" only if multiple companies clearly show the same type of development
 - use "cross_category_pattern" only if multiple selected categories reinforce the same development
-- top_opportunities and top_risks should be derived from the grouped findings, not invented separately
+- top_opportunities, emerging_opportunities, and top_risks must all be derived from the grouped findings, not invented separately
+- top_opportunities must come only from grouped findings with direction = opportunity
+- emerging_opportunities must come only from grouped findings with direction = neutral
+- top_risks must come only from grouped findings with direction = risk
+- do not duplicate the same finding across top_opportunities and emerging_opportunities
+- return at most 3 top_opportunities, 3 emerging_opportunities, and 3 top_risks
 - supporting_signal_titles should contain the most relevant signal titles behind each grouped finding
 """

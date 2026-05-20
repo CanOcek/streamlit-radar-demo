@@ -925,10 +925,15 @@ def render_findings(result: dict[str, Any] | None) -> None:
     st.subheader("Grouped Findings")
     render_grouped_findings(result.get("grouped_findings", []))
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
+
     with col1:
         render_list_block("Top Opportunities", result.get("top_opportunities", []))
+
     with col2:
+        render_list_block("Emerging Opportunities", result.get("emerging_opportunities", []))
+
+    with col3:
         render_list_block("Top Risks", result.get("top_risks", []))
 
 def render_evidence_rows(

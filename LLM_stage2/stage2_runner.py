@@ -163,6 +163,7 @@ def _empty_stage2_result(
         "overall_confidence": "low",
         "grouped_findings": [],
         "top_opportunities": [],
+        "emerging_opportunities": [],
         "top_risks": [],
         "recommended_follow_up": [],
         "_meta": {
