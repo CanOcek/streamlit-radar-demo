@@ -307,12 +307,15 @@ def main() -> None:
             )
 
     result = st.session_state.get("stage2_result")
+    selected_directions = filters.direction or []
+
     render_workspace(
         rows=rows,
         signals=signals,
         result=result,
         scope_companies=scope_companies,
         scope_categories=scope_categories,
+        selected_directions=selected_directions,
     )
 
 
@@ -579,14 +582,14 @@ def run_stage2_analysis(
         )
     st.session_state["stage2_result"] = result
 
-
 def render_workspace(
-    rows: list[dict[str, Any]],
-    signals,
-    result: dict[str, Any] | None,
-    scope_companies: list[str],
-    scope_categories: list[str],
-) -> None:
+            rows: list[dict[str, Any]],
+            signals,
+            result: dict[str, Any] | None,
+            scope_companies: list[str],
+            scope_categories: list[str],
+            selected_directions: list[str],
+    ) -> None:
     if not scope_companies or not scope_categories:
         return
 
@@ -610,26 +613,15 @@ def render_workspace(
     )
 
     with tab_overview:
-        render_overview(result)
-        if "Legal & C-Level Updates" in scope_categories:
-            render_company_structure_preview(related_companies, related_persons)
-        if "Financials" in scope_categories:
-            render_financial_context_preview(financials)
-    with tab_findings:
-        render_findings(result)
-    with tab_evidence:
-        render_evidence_rows(
-            rows,
-            include_secondary_categories=include_secondary_categories,
+        render_overview(
+            result=result,
+            scope_categories=scope_categories,
+            selected_directions=selected_directions,
+            financials=financials,
+            related_companies=related_companies,
+            related_persons=related_persons,
         )
-    with tab_company_info:
-        render_company_info(related_companies, related_persons)
-    with tab_financials:                            # new tab
-        render_financial_context_preview(financials)
-    with tab_patents:
-        render_patent_context(patents)
-        st.divider()
-        render_trademark_context(trademarks)
+
 
 
 def _parse_roles_json(roles_data: Any) -> list[dict[str, Any]]:
@@ -981,32 +973,73 @@ def render_follow_up_expander(result: dict[str, Any]) -> None:
         for item in follow_up:
             st.markdown(f"- {item}")
 
+def normalize_category_name(value: str) -> str:
+    return (value or "").replace("&amp;", "&").strip()
 
-def render_overview(result: dict[str, Any] | None) -> None:
-    if not result:
+
+def is_only_financials_selected(scope_categories: list[str]) -> bool:
+    categories = [normalize_category_name(c) for c in scope_categories if c]
+    return len(categories) == 1 and categories[0] == "Financials"
+
+
+def is_only_legal_selected(scope_categories: list[str]) -> bool:
+    categories = [normalize_category_name(c) for c in scope_categories if c]
+    return len(categories) == 1 and categories[0] == "Legal & C-Level Updates"
+
+def render_overview(
+    result: dict[str, Any] | None,
+    scope_categories: list[str],
+    selected_directions: list[str],
+    financials: list,
+    related_companies: list,
+    related_persons: list,
+) -> None:
+    # If absolutely nothing is available, show nothing
+    if not result and not (is_only_financials_selected(scope_categories) and financials) and not (
+        is_only_legal_selected(scope_categories) and (related_companies or related_persons)
+    ):
         return
 
-    # 1) Position first
-    render_position_summary(result)
+    # 1) Position summary only if LLM2 result exists
+    if result:
+        render_position_summary(result)
 
-    # 2) Metrics directly under summary
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.metric("Overall Direction", result.get("overall_direction", "-"))
-    with c2:
-        st.metric("Overall Confidence", result.get("overall_confidence", "-"))
-    with c3:
-        st.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
+        # 2) Metrics row
+        c1, c2, c3 = st.columns(3)
 
-    st.markdown("")
+        with c1:
+            if len(selected_directions) == 1:
+                st.metric("Chosen Direction", selected_directions[0].capitalize())
+            else:
+                st.metric("Overall Direction", result.get("overall_direction", "-"))
 
-    # 3) Only show non-empty priority sections
-    render_dynamic_priority_sections(result)
+        with c2:
+            st.metric("Overall Confidence", result.get("overall_confidence", "-"))
 
-    st.markdown("")
+        with c3:
+            st.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
 
-    # 4) Suggested Actions stays small and optional
-    render_follow_up_expander(result)
+        st.markdown("")
+
+        # 3) Priority sections
+        render_dynamic_priority_sections(result)
+
+        st.markdown("")
+
+        # 4) Suggested Actions stays small
+        render_follow_up_expander(result)
+
+    # 5) Additional category-specific previews only when exactly one category is selected
+    if is_only_financials_selected(scope_categories) and financials:
+        st.markdown("")
+        st.divider()
+        render_financial_context_preview(financials)
+
+    if is_only_legal_selected(scope_categories) and (related_companies or related_persons):
+        st.markdown("")
+        st.divider()
+        render_company_structure_preview(related_companies, related_persons)
+
 
 def info_pill(text: str, bg: str = "#2f3542", color: str = "#ffffff") -> None:
     st.markdown(
