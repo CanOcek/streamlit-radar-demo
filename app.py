@@ -156,24 +156,24 @@ def inject_dashboard_styles() -> None:
         }
         .summary-metric-card {
             border: 1px solid rgba(255,255,255,0.10);
-            border-radius: 16px;
-            padding: 18px 20px;
-            background: rgba(255,255,255,0.025);
-            min-height: 126px;
+            border-radius: 14px;
+            padding: 16px 18px;
+            background: rgba(255,255,255,0.022);
+            min-height: 108px;
         }
         
         .summary-metric-label {
-            font-size: 0.80rem;
+            font-size: 0.78rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: rgba(255,255,255,0.55);
+            color: rgba(255,255,255,0.53);
             font-weight: 700;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         
         .summary-metric-value {
-            font-size: 2.45rem;
-            line-height: 1.05;
+            font-size: 2.05rem;
+            line-height: 1.08;
             font-weight: 800;
             color: rgba(255,255,255,0.98);
         }
@@ -885,13 +885,15 @@ def section_title_html(title: str, color: str) -> None:
     st.markdown(
         f"""
         <div style="
-            font-size: 0.92rem;
-            font-weight: 700;
+            text-align: center;
+            font-size: 0.96rem;
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.05em;
             color: {color};
-            margin-bottom: 10px;
-            margin-top: 4px;
+            margin-bottom: 14px;
+            margin-top: 2px;
+            line-height: 1.3;
         ">
             {title}
         </div>
@@ -1055,20 +1057,22 @@ def render_summary_metric_card(label: str, value: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+
 def section_heading(title: str, subtitle: str | None = None) -> None:
     st.markdown(
         f"""
-        <div style="margin-top: 6px; margin-bottom: 14px;">
+        <div style="margin-top: 8px; margin-bottom: 18px;">
             <div style="
-                font-size: 1.08rem;
-                font-weight: 700;
-                letter-spacing: 0.02em;
-                color: rgba(255,255,255,0.96);
-                margin-bottom: 4px;
+                font-size: 1.45rem;
+                font-weight: 800;
+                letter-spacing: 0.01em;
+                color: rgba(255,255,255,0.97);
+                margin-bottom: 6px;
+                line-height: 1.2;
             ">
                 {title}
             </div>
-            {f'<div style="font-size:0.95rem; color:rgba(255,255,255,0.58);">{subtitle}</div>' if subtitle else ""}
+            {f'<div style="font-size:1rem; color:rgba(255,255,255,0.58); line-height:1.5;">{subtitle}</div>' if subtitle else ""}
         </div>
         """,
         unsafe_allow_html=True,
