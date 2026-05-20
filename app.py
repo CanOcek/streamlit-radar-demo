@@ -101,7 +101,7 @@ def inject_button_styles() -> None:
             min-height: 1.48rem !important;
             line-height: 1.0 !important;
             white-space: nowrap !important;
-            font-weight: 600 !important;
+            font-weight: 700 !important;
         }
         </style>
         """,
