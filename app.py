@@ -1084,8 +1084,14 @@ def render_dynamic_priority_sections(result: dict[str, Any]) -> None:
 
     if len(non_empty_sections) == 1:
         title, items, color = non_empty_sections[0]
-        section_title_html(title, color)
-        render_insight_items(items)
+        col1, _, _ = st.columns(3)
+        with col1:
+            st.markdown(
+                f'<div style="height:3px; background:{color}; border-radius:2px; margin-bottom:14px;"></div>',
+                unsafe_allow_html=True,
+            )
+            section_title_html(title, color)
+            render_insight_items(items)
         return
 
     if len(non_empty_sections) == 2:
