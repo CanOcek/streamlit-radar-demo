@@ -583,13 +583,13 @@ def run_stage2_analysis(
     st.session_state["stage2_result"] = result
 
 def render_workspace(
-            rows: list[dict[str, Any]],
-            signals,
-            result: dict[str, Any] | None,
-            scope_companies: list[str],
-            scope_categories: list[str],
-            selected_directions: list[str],
-    ) -> None:
+    rows: list[dict[str, Any]],
+    signals,
+    result: dict[str, Any] | None,
+    scope_companies: list[str],
+    scope_categories: list[str],
+    selected_directions: list[str],
+) -> None:
     if not scope_companies or not scope_categories:
         return
 
@@ -604,9 +604,8 @@ def render_workspace(
         False,
     )
 
-    if not rows and result is None:
-        if not related_companies and not related_persons:  # add financials
-            return
+    if not rows and result is None and not related_companies and not related_persons and not financials and not patents and not trademarks:
+        return
 
     tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials, tab_patents = st.tabs(
         ["Key Takeaways", "Findings", "Evidence", "Company Structure", "Financial Metrics", "Patents & Trademarks"]
@@ -621,6 +620,26 @@ def render_workspace(
             related_companies=related_companies,
             related_persons=related_persons,
         )
+
+    with tab_findings:
+        render_findings(result)
+
+    with tab_evidence:
+        render_evidence_rows(
+            rows,
+            include_secondary_categories=include_secondary_categories,
+        )
+
+    with tab_company_info:
+        render_company_info(related_companies, related_persons)
+
+    with tab_financials:
+        render_financial_context_preview(financials)
+
+    with tab_patents:
+        render_patent_context(patents)
+        st.divider()
+        render_trademark_context(trademarks)
 
 
 
