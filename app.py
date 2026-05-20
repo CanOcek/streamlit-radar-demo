@@ -142,11 +142,26 @@ def inject_dashboard_styles() -> None:
 
         .position-card {
             border: 1px solid rgba(255,255,255,0.10);
-            border-radius: 14px;
-            padding: 18px 20px;
+            border-radius: 16px;
+            padding: 22px 24px;
             background: rgba(255,255,255,0.02);
             margin-top: 12px;
-            margin-bottom: 18px;
+            margin-bottom: 22px;
+        }
+        
+        .position-kicker {
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255,255,255,0.62);
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        
+        .position-text {
+            font-size: 1.14rem;
+            line-height: 1.75;
+            color: rgba(255,255,255,0.96);
         }
 
         .small-empty {
@@ -154,25 +169,25 @@ def inject_dashboard_styles() -> None:
             font-size: 0.95rem;
             margin-top: 4px;
         }
-        .summary-metric-card {
+       .summary-metric-card {
             border: 1px solid rgba(255,255,255,0.10);
             border-radius: 14px;
-            padding: 16px 18px;
-            background: rgba(255,255,255,0.022);
-            min-height: 108px;
+            padding: 15px 17px;
+            background: rgba(255,255,255,0.02);
+            min-height: 96px;
         }
         
         .summary-metric-label {
-            font-size: 0.78rem;
+            font-size: 0.76rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: rgba(255,255,255,0.53);
+            color: rgba(255,255,255,0.52);
             font-weight: 700;
             margin-bottom: 10px;
         }
         
         .summary-metric-value {
-            font-size: 2.05rem;
+            font-size: 1.9rem;
             line-height: 1.08;
             font-weight: 800;
             color: rgba(255,255,255,0.98);
@@ -884,18 +899,21 @@ def render_ranked_section(title: str, items: list[dict[str, Any]], empty_text: s
 def section_title_html(title: str, color: str) -> None:
     st.markdown(
         f"""
-        <div style="
-            text-align: center;
-            font-size: 0.96rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: {color};
-            margin-bottom: 14px;
-            margin-top: 2px;
-            line-height: 1.3;
-        ">
-            {title}
+        <div style="text-align:center; margin-bottom: 14px;">
+            <span style="
+                display:inline-block;
+                padding:7px 14px;
+                border-radius:999px;
+                border:1px solid {color};
+                color:{color};
+                font-size:0.88rem;
+                font-weight:800;
+                letter-spacing:0.05em;
+                text-transform:uppercase;
+                background: rgba(255,255,255,0.02);
+            ">
+                {title}
+            </span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1015,8 +1033,8 @@ def render_position_summary(result: dict[str, Any]) -> None:
     st.markdown(
         f"""
         <div class="position-card">
-            <div class="section-kicker">Current Position</div>
-            <div style="font-size:1rem; line-height:1.75;">
+            <div class="position-kicker">Business Development Outlook</div>
+            <div class="position-text">
                 {result.get("executive_summary", "")}
             </div>
         </div>
@@ -1061,14 +1079,14 @@ def render_summary_metric_card(label: str, value: str) -> None:
 def section_heading(title: str, subtitle: str | None = None) -> None:
     st.markdown(
         f"""
-        <div style="margin-top: 8px; margin-bottom: 18px;">
+        <div style="margin-top: 10px; margin-bottom: 20px;">
             <div style="
-                font-size: 1.45rem;
+                font-size: 1.6rem;
                 font-weight: 800;
                 letter-spacing: 0.01em;
-                color: rgba(255,255,255,0.97);
+                color: rgba(255,255,255,0.98);
                 margin-bottom: 6px;
-                line-height: 1.2;
+                line-height: 1.15;
             ">
                 {title}
             </div>
