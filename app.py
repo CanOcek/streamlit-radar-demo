@@ -1322,25 +1322,6 @@ def render_grouped_findings(findings: list[dict[str, Any]]) -> None:
                     for title in titles:
                         st.markdown(f"- {title}")
 
-    for finding in findings:
-        with st.expander(f"{finding.get('finding_id', '')} - {finding.get('title', 'Untitled')}"):
-            col1, col2, col3 = st.columns([1, 1, 2])
-            with col1:
-                badge(finding.get("direction", "-"), direction_color(finding.get("direction", "")))
-            with col2:
-                st.markdown(f"**Confidence:** {finding.get('confidence', '-')}")
-            with col3:
-                st.markdown(f"**Categories:** {', '.join(finding.get('categories', []))}")
-            st.markdown("**Summary**")
-            st.write(finding.get("summary", ""))
-            st.markdown("**Why it matters for PNTN**")
-            st.write(finding.get("why_it_matters_for_pntn", ""))
-            titles = finding.get("supporting_signal_titles", [])
-            if titles:
-                st.markdown("**Supporting signals**")
-                for title in titles:
-                    st.markdown(f"- {title}")
-
 
 def render_list_block(title: str, items: list[dict[str, Any]]) -> None:
     st.subheader(title)
