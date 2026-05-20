@@ -334,7 +334,7 @@ def main() -> None:
                 line-height: 1.5;
                 max-width: 950px;
             ">
-                Identify where to focus: key opportunities, emerging opportunities, risks, and the evidence behind them.
+                A business development radar for spotting relevant signals, opportunity areas, and risks across public company data.
             </div>
         </div>
         """,
