@@ -139,14 +139,13 @@ def inject_dashboard_styles() -> None:
             margin-bottom: 6px;
             font-weight: 600;
         }
-
         .position-card {
             border: 1px solid rgba(255,255,255,0.10);
             border-radius: 16px;
             padding: 22px 24px;
             background: rgba(255,255,255,0.02);
             margin-top: 12px;
-            margin-bottom: 22px;
+            margin-bottom: 18px;
         }
         
         .position-kicker {
@@ -163,13 +162,8 @@ def inject_dashboard_styles() -> None:
             line-height: 1.75;
             color: rgba(255,255,255,0.96);
         }
-
-        .small-empty {
-            color: rgba(255,255,255,0.55);
-            font-size: 0.95rem;
-            margin-top: 4px;
-        }
-       .summary-metric-card {
+        
+        .summary-metric-card {
             border: 1px solid rgba(255,255,255,0.10);
             border-radius: 14px;
             padding: 15px 17px;
@@ -896,6 +890,7 @@ def render_ranked_section(title: str, items: list[dict[str, Any]], empty_text: s
             if item.get("reason"):
                 st.write(item["reason"])
 
+
 def section_title_html(title: str, color: str) -> None:
     title_map = {
         "Top Opportunities": "↗ Top Opportunities",
@@ -907,7 +902,7 @@ def section_title_html(title: str, color: str) -> None:
 
     st.markdown(
         f"""
-        <div style="text-align:center; margin-bottom: 14px;">
+        <div style="text-align:center; margin-bottom: 12px;">
             <span style="
                 display:inline-block;
                 padding:6px 12px;
@@ -1093,12 +1088,12 @@ def section_heading(title: str, subtitle: str | None = None) -> None:
                 font-weight: 800;
                 letter-spacing: 0.01em;
                 color: rgba(255,255,255,0.98);
-                margin-bottom: 6px;
+                margin-bottom: 4px;
                 line-height: 1.15;
             ">
                 {title}
             </div>
-            {f'<div style="font-size:0.96rem; color:rgba(255,255,255,0.58); line-height:1.35;">{subtitle}</div>' if subtitle else ""}
+            {f'<div style="font-size:0.95rem; color:rgba(255,255,255,0.58); line-height:1.35;">{subtitle}</div>' if subtitle else ""}
         </div>
         """,
         unsafe_allow_html=True,
