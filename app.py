@@ -110,6 +110,24 @@ def inject_dashboard_styles() -> None:
     st.markdown(
         """
         <style>
+        /* Sidebar section labels */
+        .sidebar-section-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            font-weight: 700;
+            color: rgba(255,255,255,0.35);
+            margin-top: 4px;
+            margin-bottom: 6px;
+        }
+        
+        .sidebar-hint {
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.42);
+            line-height: 1.5;
+            margin-top: 4px;
+            margin-bottom: 8px;
+        }
         .insight-card {
              border: 1px solid rgba(255,255,255,0.10);
              border-radius: 14px;
@@ -308,7 +326,8 @@ def main() -> None:
     with st.sidebar:
         render_sidebar_branding()
 
-        st.header("Selection")
+        # --- SCOPE ---
+        st.markdown('<div class="sidebar-section-label">Scope</div>', unsafe_allow_html=True)
         scope_companies, scope_categories = render_scope_controls(db_options)
         effective_companies, effective_categories = effective_scope_values(
             scope_companies=scope_companies,
@@ -318,6 +337,8 @@ def main() -> None:
 
         st.divider()
 
+        # --- FILTERS ---
+        st.markdown('<div class="sidebar-section-label">Filters</div>', unsafe_allow_html=True)
         filters = render_filter_controls(
             db_options=db_options,
             scope_companies=effective_companies,
@@ -331,6 +352,10 @@ def main() -> None:
 
         st.divider()
 
+        # --- RETRIEVAL ---
+        st.markdown('<div class="sidebar-section-label">Retrieval</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-hint">Choose how evidence is fetched from the database.</div>',
+                    unsafe_allow_html=True)
         strategy = render_strategy_control()
 
         evidence_limit = st.slider(
@@ -342,7 +367,7 @@ def main() -> None:
         )
 
         min_vector_similarity = st.slider(
-            "Minimum vector similarity",
+            "Min. vector similarity",
             min_value=0.0,
             max_value=1.0,
             value=0.25,
@@ -373,16 +398,32 @@ def main() -> None:
     signals = st.session_state.get("stage1_signals", [])
     can_synthesize = bool(signals)
 
-    btn_col1, btn_col2, _ = st.columns([1.05, 1.20, 3.75], gap="small")
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+
+    btn_col1, btn_col2 = st.columns([1, 1.15], gap="small")
 
     with btn_col1:
-        retrieve_clicked = st.button("Get Evidence", type="primary")
+        retrieve_clicked = st.button(
+            "① Get Evidence",
+            type="primary",
+            use_container_width=True,
+            help="Fetches matching signals from the database based on your sidebar filters.",
+        )
 
     with btn_col2:
         synthesize_clicked = st.button(
-            "Run LLM2 Synthesis",
+            "② Run LLM2 Synthesis",
             type="primary" if can_synthesize else "secondary",
+            use_container_width=True,
+            help="Runs AI analysis on the retrieved evidence to generate findings and opportunities. Requires evidence first.",
         )
+
+    st.markdown(
+        '<div style="font-size:0.76rem; color:rgba(255,255,255,0.35); margin-top:4px; margin-bottom:2px;">'
+        'Run steps in order: get evidence first, then synthesize.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 
     if retrieve_clicked:
@@ -512,7 +553,6 @@ def unique_nonempty_values(values: list[str]) -> list[str]:
 
 
 def render_strategy_control() -> str:
-    st.markdown("### Retrieval")
     return st.radio(
         "Strategy",
         [
@@ -520,13 +560,16 @@ def render_strategy_control() -> str:
             "Single vector query",
             "Multi-query vector search",
         ],
+        format_func=lambda x: {
+            "Exact metadata fetch": "Standard (all matching signals)",
+            "Single vector query": "Similarity search (1 query)",
+            "Multi-query vector search": "Similarity search (multiple queries)",
+        }.get(x, x),
         help=(
-            "Exact fetch returns all matching LLM1 signals without ranking.\n\n"
-            "Vector modes rank by similarity to the search query over selected fields.\n\n"
-            "Vector search is most useful with a large dataset, and exact fetch with filtering."
+            "Standard returns all matching signals without ranking.\n\n"
+            "Similarity search ranks results by relevance to your search query."
         ),
     )
-
 
 def render_filter_controls(
     db_options: dict[str, list[str]],
