@@ -186,6 +186,23 @@ def inject_dashboard_styles() -> None:
             font-weight: 800;
             color: rgba(255,255,255,0.98);
         }
+        .finding-card-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            line-height: 1.35;
+            color: rgba(255,255,255,0.98);
+            margin-bottom: 10px;
+        }
+        
+        .finding-card-block-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.74);
+            margin-top: 10px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
         </style>
         """,
         unsafe_allow_html=True,
