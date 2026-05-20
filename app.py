@@ -95,19 +95,22 @@ def inject_button_styles() -> None:
         """
         <style>
         div.stButton > button {
-            padding: 0.01rem 0.30rem !important;
-            font-size: 0.50rem !important;
+            width: 170px !important;
+            min-width: 170px !important;
+            max-width: 170px !important;
+
+            padding: 0.06rem 0.45rem !important;
+            font-size: 0.72rem !important;
             border-radius: 8px !important;
-            min-height: 1.48rem !important;
+            min-height: 1.55rem !important;
             line-height: 1.0 !important;
             white-space: nowrap !important;
-            font-weight: 700 !important;
+            font-weight: 600 !important;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
-
 
 def inject_dashboard_styles() -> None:
     st.markdown(
@@ -428,16 +431,16 @@ def main() -> None:
         retrieve_clicked = st.button(
             "① Evidence",
             type="primary",
-            use_container_width=True,
-            help="Fetches matching signals from the database based on your sidebar filters.",
+            use_container_width=False,
+            help="Fetch matching signals from the database.",
         )
 
     with btn_col2:
         synthesize_clicked = st.button(
             "② Synthesis",
             type="primary" if can_synthesize else "secondary",
-            use_container_width=True,
-            help="Runs AI analysis on the retrieved evidence to generate findings and opportunities. Requires evidence first.",
+            use_container_width=False,
+            help="Run AI analysis on the retrieved evidence.",
         )
 
     st.markdown(
