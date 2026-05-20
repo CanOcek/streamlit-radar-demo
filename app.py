@@ -1131,17 +1131,17 @@ def render_findings(result: dict[str, Any] | None) -> None:
         st.info("Run LLM2 synthesis to see grouped findings.")
         return
 
-    left_col, right_col = st.columns([1.9, 1], gap="large")
+    st.subheader("Grouped Findings")
+    render_grouped_findings(result.get("grouped_findings", []))
 
-    with left_col:
-        st.subheader("Grouped Findings")
-        render_grouped_findings(result.get("grouped_findings", []))
+    st.divider()
 
-        st.markdown("")
-        render_follow_up_expander(result)
+    render_dynamic_priority_sections(result)
 
-    with right_col:
-        render_priority_sidebar_sections(result)
+    st.divider()
+
+    render_follow_up_expander(result)
+
 
 
 def render_evidence_rows(
