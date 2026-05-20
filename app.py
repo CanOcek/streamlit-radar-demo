@@ -1451,13 +1451,18 @@ def info_pill(text: str, bg: str = "#2f3542", color: str = "#ffffff") -> None:
 
 
 def render_company_info_summary(related_companies: list, related_persons: list) -> None:
-    st.subheader("Company Structure Snapshot")
+    section_heading(
+        "Company Structure Snapshot",
+        "Overview of related entities and individuals linked to the selected company."
+    )
 
     c1, c2 = st.columns(2)
+
     with c1:
-        st.metric("Related Companies", len(related_companies))
+        render_summary_metric_card("Related Companies", str(len(related_companies)))
+
     with c2:
-        st.metric("Related Persons", len(related_persons))
+        render_summary_metric_card("Related Persons", str(len(related_persons)))
 
 def render_company_info(related_companies: list, related_persons: list) -> None:
     render_company_info_summary(related_companies, related_persons)
