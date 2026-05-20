@@ -111,11 +111,11 @@ def inject_dashboard_styles() -> None:
         """
         <style>
         .insight-card {
-            border: 1px solid rgba(255,255,255,0.10);
-            border-radius: 14px;
-            padding: 16px 18px;
+             border: 1px solid rgba(255,255,255,0.10);
+             border-radius: 14px;
+             padding: 14px 16px;
             background: rgba(255,255,255,0.02);
-            margin-bottom: 14px;
+            margin-bottom: 12px;
         }
 
         .insight-title {
@@ -860,7 +860,6 @@ def render_priority_sections(result: dict[str, Any]) -> None:
             top_opportunities,
             "No confirmed top opportunities at this stage.",
         )
-
     with col2:
         render_ranked_section(
             "Emerging Opportunities",
@@ -874,6 +873,27 @@ def render_priority_sections(result: dict[str, Any]) -> None:
             top_risks,
             "No key risks identified.",
         )
+def render_priority_sidebar_sections(result: dict[str, Any]) -> None:
+    sections = [
+        ("Top Opportunities", result.get("top_opportunities", []), "No confirmed top opportunities at this stage."),
+        ("Emerging Opportunities", result.get("emerging_opportunities", []), "No emerging opportunities identified."),
+        ("Top Risks", result.get("top_risks", []), "No key risks identified."),
+    ]
+
+    shown_any = False
+
+    for title, items, empty_text in sections:
+        # only show section if it has items OR if you explicitly want a small empty note
+        if not items:
+            continue
+
+        shown_any = True
+        st.subheader(title)
+        render_insight_items(items)
+        st.markdown("")
+
+    if not shown_any:
+        st.caption("No key opportunities or risks identified for the selected scope.")
 
 
 def render_follow_up_block(result: dict[str, Any]) -> None:
@@ -884,17 +904,23 @@ def render_follow_up_block(result: dict[str, Any]) -> None:
     st.subheader("Recommended Follow-Up")
     for item in follow_up:
         st.markdown(f"- {item}")
+
 def render_insight_items(items: list[dict[str, Any]]) -> None:
     for item in items[:3]:
         st.markdown(
             f"""
             <div class="insight-card">
-                <div class="insight-title">{item.get("title", "Untitled")}</div>
-                <div class="insight-reason">{item.get("reason", "")}</div>
+                <div class="insight-title" style="font-size:1rem; line-height:1.45; margin-bottom:8px;">
+                    {item.get("title", "Untitled")}
+                </div>
+                <div class="insight-reason" style="font-size:0.96rem; line-height:1.55;">
+                    {item.get("reason", "")}
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+
 
 
 def render_dynamic_priority_sections(result: dict[str, Any]) -> None:
@@ -1105,8 +1131,7 @@ def render_findings(result: dict[str, Any] | None) -> None:
         st.info("Run LLM2 synthesis to see grouped findings.")
         return
 
-    # Left = grouped findings, right = manager summary blocks
-    left_col, right_col = st.columns([1.65, 1], gap="large")
+    left_col, right_col = st.columns([1.9, 1], gap="large")
 
     with left_col:
         st.subheader("Grouped Findings")
@@ -1116,7 +1141,8 @@ def render_findings(result: dict[str, Any] | None) -> None:
         render_follow_up_expander(result)
 
     with right_col:
-        render_dynamic_priority_sections(result)
+        render_priority_sidebar_sections(result)
+
 
 def render_evidence_rows(
     rows: list[dict[str, Any]],
