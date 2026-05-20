@@ -1132,15 +1132,49 @@ def render_follow_up_expander(result: dict[str, Any]) -> None:
     if not follow_up:
         return
 
-    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-    with st.expander("📋  Suggested Actions", expanded=False):
-        for i, item in enumerate(follow_up, 1):
-            st.markdown(
-                f'<div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.94rem; line-height:1.55; color:rgba(255,255,255,0.88);">'
-                f'<span style="color:rgba(255,255,255,0.35); font-size:0.8rem; margin-right:8px;">{i:02d}</span>{item}'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    section_heading(
+        "Suggested Actions",
+        "Recommended next steps based on the findings above."
+    )
+
+    for i, item in enumerate(follow_up, 1):
+        st.markdown(
+            f"""
+            <div style="
+                display: flex;
+                align-items: flex-start;
+                gap: 14px;
+                padding: 12px 16px;
+                margin-bottom: 8px;
+                border: 1px solid rgba(255,255,255,0.07);
+                border-radius: 10px;
+                background: rgba(255,255,255,0.02);
+            ">
+                <span style="
+                    min-width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    background: rgba(232,93,74,0.15);
+                    border: 1px solid rgba(232,93,74,0.35);
+                    color: rgba(232,93,74,0.9);
+                    font-size: 0.72rem;
+                    font-weight: 700;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    margin-top: 1px;
+                ">{i:02d}</span>
+                <span style="
+                    font-size: 0.94rem;
+                    line-height: 1.6;
+                    color: rgba(255,255,255,0.82);
+                ">{item}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 def normalize_category_name(value: str) -> str:
     return (value or "").replace("&amp;", "&").strip()
