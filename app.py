@@ -1346,7 +1346,7 @@ def render_findings(result: dict[str, Any] | None) -> None:
         return
 
     section_heading(
-        "Findings from Retrieved Evidence",
+        "Important Findings from Signals",
         "Grouped company developments synthesized from the underlying evidence signals."
     )
     render_grouped_finding_cards(result.get("grouped_findings", []))
