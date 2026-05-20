@@ -1135,7 +1135,7 @@ def render_follow_up_expander(result: dict[str, Any]) -> None:
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     section_heading(
         "Suggested Actions",
-        "Recommended next steps based on the findings above."
+        "Recommended next steps based on the findings."
     )
 
     for i, item in enumerate(follow_up, 1):
