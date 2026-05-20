@@ -139,28 +139,33 @@ def inject_dashboard_styles() -> None:
             margin-bottom: 6px;
             font-weight: 600;
         }
+        /* REPLACE existing .position-card and .position-text */
         .position-card {
-            border: 1px solid rgba(255,255,255,0.10);
-            border-radius: 16px;
-            padding: 22px 24px;
-            background: rgba(255,255,255,0.02);
-            margin-top: 12px;
-            margin-bottom: 18px;
+            border-left: 3px solid rgba(232, 93, 74, 0.6);
+            border-radius: 0 10px 10px 0;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.025);
+            margin-top: 8px;
+            margin-bottom: 20px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            border-right: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
         
         .position-kicker {
-            font-size: 1rem;
+            font-size: 0.72rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: rgba(255,255,255,0.62);
+            letter-spacing: 0.08em;
+            color: rgba(232, 93, 74, 0.8);
             font-weight: 700;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         
         .position-text {
-            font-size: 1.14rem;
+            font-size: 0.97rem;
             line-height: 1.75;
-            color: rgba(255,255,255,0.96);
+            color: rgba(255,255,255,0.82);
+            max-width: 860px;
         }
         
         .summary-metric-card {
@@ -195,13 +200,15 @@ def inject_dashboard_styles() -> None:
         }
         
         .finding-card-block-title {
-            font-size: 0.92rem;
+            font-size: 0.72rem;
             font-weight: 700;
-            color: rgba(255,255,255,0.74);
-            margin-top: 10px;
-            margin-bottom: 6px;
+            color: rgba(255,255,255,0.45);
+            margin-top: 14px;
+            margin-bottom: 5px;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.07em;
+            padding-left: 8px;
+            border-left: 2px solid rgba(255,255,255,0.18);
         }
                 /* Cleaner expander headers */
         div[data-testid="stExpander"] > details > summary {
@@ -288,7 +295,10 @@ def main() -> None:
         return
     inject_button_styles()
     inject_dashboard_styles()
-    st.title("Business Development Radar")
+    st.markdown(
+        '<h1 style="font-size:1.75rem; font-weight:800; letter-spacing:-0.01em; margin-bottom:2px;">Business Development Radar</h1>',
+        unsafe_allow_html=True,
+    )
     st.caption("Choose companies and categories from the sidebar, retrieve evidence, and generate a synthesis.")
 
     db_options, db_error = load_filter_options()
@@ -1082,16 +1092,25 @@ def render_dynamic_priority_sections(result: dict[str, Any]) -> None:
         col1, col2 = st.columns(2)
         for col, (title, items, color) in zip([col1, col2], non_empty_sections):
             with col:
+                st.markdown(
+                    f'<div style="height:3px; background:{color}; border-radius:2px; margin-bottom:14px;"></div>',
+                    unsafe_allow_html=True,
+                )
                 section_title_html(title, color)
                 render_insight_items(items)
         return
 
+    col_colors = {"Top Opportunities": "#2E8B57", "Emerging Opportunities": "#B5A800", "Top Risks": "#B22222"}
+
     col1, col2, col3 = st.columns(3)
     for col, (title, items, color) in zip([col1, col2, col3], non_empty_sections):
         with col:
+            st.markdown(
+                f'<div style="height:3px; background:{color}; border-radius:2px; margin-bottom:14px;"></div>',
+                unsafe_allow_html=True,
+            )
             section_title_html(title, color)
             render_insight_items(items)
-
 
 def render_position_summary(result: dict[str, Any]) -> None:
     st.markdown(
@@ -1137,11 +1156,21 @@ def is_only_legal_selected(scope_categories: list[str]) -> bool:
     return len(categories) == 1 and categories[0] == "Legal & C-Level Updates"
 
 def render_summary_metric_card(label: str, value: str) -> None:
+    # Color hint based on value
+    value_lower = value.strip().lower()
+    accent = "rgba(255,255,255,0.98)"
+    if value_lower in ("opportunity", "high"):
+        accent = "#4ade80"   # green
+    elif value_lower in ("mixed", "medium"):
+        accent = "#facc15"   # amber
+    elif value_lower in ("risk", "low"):
+        accent = "#f87171"   # red
+
     st.markdown(
         f"""
         <div class="summary-metric-card">
             <div class="summary-metric-label">{label}</div>
-            <div class="summary-metric-value">{value}</div>
+            <div class="summary-metric-value" style="color:{accent}; font-size:1.6rem;">{value}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1619,7 +1648,10 @@ def render_grouped_finding_cards(findings: list[dict[str, Any]]) -> None:
         </div>
         """
 
-        with st.expander(f"{fid} · {title}  |  {direction_label}  ·  {confidence_label_text}", expanded=False):
+
+        short_title = title if len(title) <= 72 else title[:70] + "…"
+        dir_icon = {"opportunity": "↗", "risk": "⚠", "neutral": "–"}.get(direction.lower(), "")
+        with st.expander(f"{fid}  {dir_icon}  {short_title}", expanded=False):
             st.markdown(
                 f'<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">'
                 f'<span style="background:{dir_color}; color:white; padding:3px 10px; border-radius:10px; font-size:0.78rem; font-weight:600;">{direction_label}</span>'
