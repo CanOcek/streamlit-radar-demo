@@ -95,10 +95,10 @@ def inject_button_styles() -> None:
         """
         <style>
         div.stButton > button {
-            padding: 0.12rem 0.65rem !important;
-            font-size: 0.80rem !important;
+            padding: 0.08rem 0.50rem !important;
+            font-size: 0.78rem !important;
             border-radius: 8px !important;
-            min-height: 2.10rem !important;
+            min-height: 1.95rem !important;
             line-height: 1.0 !important;
             white-space: nowrap !important;
         }
@@ -106,28 +106,30 @@ def inject_button_styles() -> None:
         """,
         unsafe_allow_html=True,
     )
+
 def inject_dashboard_styles() -> None:
     st.markdown(
         """
         <style>
         /* Sidebar section labels */
         .sidebar-section-label {
-            font-size: 0.68rem;
+            font-size: 0.82rem;
             text-transform: uppercase;
-            letter-spacing: 0.09em;
-            font-weight: 700;
-            color: rgba(255,255,255,0.35);
-            margin-top: 4px;
-            margin-bottom: 6px;
+            letter-spacing: 0.08em;
+            font-weight: 800;
+            color: rgba(255,255,255,0.52);
+            margin-top: 6px;
+            margin-bottom: 8px;
         }
         
         .sidebar-hint {
-            font-size: 0.78rem;
-            color: rgba(255,255,255,0.42);
+            font-size: 0.84rem;
+            color: rgba(255,255,255,0.48);
             line-height: 1.5;
             margin-top: 4px;
             margin-bottom: 8px;
         }
+        
         .insight-card {
              border: 1px solid rgba(255,255,255,0.10);
              border-radius: 14px;
@@ -400,13 +402,13 @@ def main() -> None:
 
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-    btn_col1, btn_col2 = st.columns([1, 1.15], gap="small")
+    btn_col1, btn_col2 = st.columns([0.78, 0.95, 3.9], gap="small")
 
     with btn_col1:
         retrieve_clicked = st.button(
             "① Get Evidence",
             type="primary",
-            use_container_width=True,
+            use_container_width=False,
             help="Fetches matching signals from the database based on your sidebar filters.",
         )
 
@@ -414,7 +416,7 @@ def main() -> None:
         synthesize_clicked = st.button(
             "② Run LLM2 Synthesis",
             type="primary" if can_synthesize else "secondary",
-            use_container_width=True,
+            use_container_width=False,
             help="Runs AI analysis on the retrieved evidence to generate findings and opportunities. Requires evidence first.",
         )
 
