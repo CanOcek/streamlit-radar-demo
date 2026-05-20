@@ -95,10 +95,10 @@ def inject_button_styles() -> None:
         """
         <style>
         div.stButton > button {
-            padding: 0.02rem 0.34rem !important;
-            font-size: 0.68rem !important;
+            padding: 0.01rem 0.30rem !important;
+            font-size: 0.65rem !important;
             border-radius: 8px !important;
-            min-height: 1.58rem !important;
+            min-height: 1.5rem !important;
             line-height: 1.0 !important;
             white-space: nowrap !important;
             font-weight: 600 !important;
