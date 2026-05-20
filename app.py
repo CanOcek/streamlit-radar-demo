@@ -279,6 +279,53 @@ def inject_dashboard_styles() -> None:
             font-weight: 700;
             color: rgba(255,255,255,0.85);
         }
+        /* Normalize native Streamlit headings and body copy across all tabs */
+        div[data-testid="stMarkdownContainer"] h1,
+        div[data-testid="stMarkdownContainer"] h2,
+        div[data-testid="stMarkdownContainer"] h3 {
+            font-size: 1.35rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.01em !important;
+            color: rgba(255,255,255,0.98) !important;
+            line-height: 1.2 !important;
+            margin-top: 0.2rem !important;
+            margin-bottom: 0.45rem !important;
+        }
+
+        div[data-testid="stMarkdownContainer"] p,
+        div[data-testid="stMarkdownContainer"] li,
+        div[data-testid="stMarkdownContainer"] label {
+            font-size: 0.98rem !important;
+            line-height: 1.65 !important;
+            color: rgba(255,255,255,0.88) !important;
+        }
+
+        div[data-testid="stCaptionContainer"] {
+            font-size: 0.86rem !important;
+            color: rgba(255,255,255,0.55) !important;
+        }
+
+        /* Native metrics in Financial Metrics / Company Structure feel more aligned */
+        div[data-testid="stMetric"] {
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        div[data-testid="stMetricLabel"] {
+            font-size: 0.74rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+            color: rgba(255,255,255,0.52) !important;
+            font-weight: 700 !important;
+        }
+
+        div[data-testid="stMetricValue"] {
+            font-size: 1.28rem !important;
+            font-weight: 800 !important;
+            color: rgba(255,255,255,0.96) !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
