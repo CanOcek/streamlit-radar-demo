@@ -897,22 +897,30 @@ def render_ranked_section(title: str, items: list[dict[str, Any]], empty_text: s
                 st.write(item["reason"])
 
 def section_title_html(title: str, color: str) -> None:
+    title_map = {
+        "Top Opportunities": "↗ Top Opportunities",
+        "Emerging Opportunities": "◌ Emerging Opportunities",
+        "Top Risks": "⚠ Top Risks",
+    }
+
+    display_title = title_map.get(title, title)
+
     st.markdown(
         f"""
         <div style="text-align:center; margin-bottom: 14px;">
             <span style="
                 display:inline-block;
-                padding:7px 14px;
+                padding:6px 12px;
                 border-radius:999px;
                 border:1px solid {color};
                 color:{color};
-                font-size:0.88rem;
+                font-size:0.84rem;
                 font-weight:800;
                 letter-spacing:0.05em;
                 text-transform:uppercase;
                 background: rgba(255,255,255,0.02);
             ">
-                {title}
+                {display_title}
             </span>
         </div>
         """,
@@ -1079,7 +1087,7 @@ def render_summary_metric_card(label: str, value: str) -> None:
 def section_heading(title: str, subtitle: str | None = None) -> None:
     st.markdown(
         f"""
-        <div style="margin-top: 10px; margin-bottom: 20px;">
+        <div style="margin-top: 8px; margin-bottom: 8px;">
             <div style="
                 font-size: 1.6rem;
                 font-weight: 800;
@@ -1090,12 +1098,27 @@ def section_heading(title: str, subtitle: str | None = None) -> None:
             ">
                 {title}
             </div>
-            {f'<div style="font-size:1rem; color:rgba(255,255,255,0.58); line-height:1.5;">{subtitle}</div>' if subtitle else ""}
+            {f'<div style="font-size:0.96rem; color:rgba(255,255,255,0.58); line-height:1.35;">{subtitle}</div>' if subtitle else ""}
         </div>
         """,
         unsafe_allow_html=True,
     )
 
+def render_micro_guide() -> None:
+    st.markdown(
+        """
+        <div style="
+            font-size: 0.96rem;
+            color: rgba(255,255,255,0.68);
+            line-height: 1.45;
+            margin-top: -2px;
+            margin-bottom: 14px;
+        ">
+            Start with <strong>Where to Focus</strong> for actionable signals. Use <strong>Findings</strong> for context and <strong>Evidence</strong> for proof.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def render_overview(
     result: dict[str, Any] | None,
@@ -1116,7 +1139,7 @@ def render_overview(
         render_position_summary(result)
 
         section_heading(
-            "BD Snapshot",
+            "At a Glance",
             "Current assessment of commercial potential, confidence, and signal volume."
         )
 
@@ -1139,7 +1162,7 @@ def render_overview(
 
         # 3) Priority sections
         section_heading(
-            "Priority Areas",
+            "Where to Focus",
             "Most relevant opportunities, early watchpoints, and risks for business development."
         )
         render_dynamic_priority_sections(result)
