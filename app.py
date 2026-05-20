@@ -1287,7 +1287,7 @@ def _readable_column_name(name: str) -> str:
     readable = name.replace("_", " ")
     return readable[:1].upper() + readable[1:]
 
-    def render_grouped_findings(findings: list[dict[str, Any]]) -> None:
+def render_grouped_findings(findings: list[dict[str, Any]]) -> None:
         if not findings:
             st.caption("No grouped findings available.")
             return
