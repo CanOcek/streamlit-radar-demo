@@ -1312,21 +1312,39 @@ def render_company_info(related_companies: list, related_persons: list) -> None:
                         _render_roles_display(roles, full_name, related_to)
 st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
+def render_priority_expanders(result: dict[str, Any]) -> None:
+    sections = [
+        ("Top Opportunities", result.get("top_opportunities", []), "#2E8B57", "No confirmed top opportunities at this stage."),
+        ("Emerging Opportunities", result.get("emerging_opportunities", []), "#C2A83E", "No emerging opportunities identified."),
+        ("Top Risks", result.get("top_risks", []), "#B22222", "No key risks identified."),
+    ]
+
+    shown_any = False
+
+    for title, items, color, empty_text in sections:
+        if not items:
+            continue
+
+        shown_any = True
+        display_title = {
+            "Top Opportunities": "↗ Top Opportunities",
+            "Emerging Opportunities": "◌ Emerging Opportunities",
+            "Top Risks": "⚠ Top Risks",
+        }.get(title, title)
+
+        with st.expander(display_title, expanded=False):
+            render_insight_items(items)
+
+    if not shown_any:
+        st.caption("No key opportunities or risks identified for the selected scope.")
+
+
+
 def render_findings(result: dict[str, Any] | None) -> None:
     if not result:
         st.info("Run LLM2 synthesis to see grouped findings.")
         return
 
-    # 1) Start with the business-relevant summary, same visual role as Key Takeaways
-    section_heading(
-        "Where to Focus",
-        "Most relevant opportunities, early watchpoints, and risks for business development."
-    )
-    render_dynamic_priority_sections(result)
-
-    st.markdown("")
-
-    # 2) Then explain the reasoning behind those areas
     section_heading(
         "Why These Matter",
         "Grouped company-level findings derived from the underlying evidence."
@@ -1335,8 +1353,16 @@ def render_findings(result: dict[str, Any] | None) -> None:
 
     st.markdown("")
 
-    # 3) Suggested actions last
+    section_heading(
+        "Where to Focus",
+        "Open only the sections you want to review in detail."
+    )
+    render_priority_expanders(result)
+
+    st.markdown("")
+
     render_follow_up_expander(result)
+
 
 
 def render_evidence_rows(
