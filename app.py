@@ -106,6 +106,59 @@ def inject_button_styles() -> None:
         """,
         unsafe_allow_html=True,
     )
+def inject_dashboard_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .insight-card {
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            padding: 16px 18px;
+            background: rgba(255,255,255,0.02);
+            margin-bottom: 14px;
+        }
+
+        .insight-title {
+            font-size: 1.08rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            line-height: 1.35;
+        }
+
+        .insight-reason {
+            font-size: 0.98rem;
+            line-height: 1.65;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .section-kicker {
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: rgba(255,255,255,0.55);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .position-card {
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 14px;
+            padding: 18px 20px;
+            background: rgba(255,255,255,0.02);
+            margin-top: 12px;
+            margin-bottom: 18px;
+        }
+
+        .small-empty {
+            color: rgba(255,255,255,0.55);
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 def render_sidebar_branding() -> None:
     pntn_html = ""
@@ -140,6 +193,7 @@ def main() -> None:
     if not require_password():
         return
     inject_button_styles()
+    inject_dashboard_styles()
     st.title("Business Development Radar")
     st.caption("Choose companies and categories from the sidebar, retrieve evidence, and generate a synthesis.")
 
@@ -830,31 +884,103 @@ def render_follow_up_block(result: dict[str, Any]) -> None:
     st.subheader("Recommended Follow-Up")
     for item in follow_up:
         st.markdown(f"- {item}")
+def render_insight_items(items: list[dict[str, Any]]) -> None:
+    for item in items[:3]:
+        st.markdown(
+            f"""
+            <div class="insight-card">
+                <div class="insight-title">{item.get("title", "Untitled")}</div>
+                <div class="insight-reason">{item.get("reason", "")}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def render_dynamic_priority_sections(result: dict[str, Any]) -> None:
+    sections = [
+        ("Top Opportunities", result.get("top_opportunities", [])),
+        ("Emerging Opportunities", result.get("emerging_opportunities", [])),
+        ("Top Risks", result.get("top_risks", [])),
+    ]
+
+    non_empty_sections = [(title, items) for title, items in sections if items]
+
+    # If nothing is there, show one small note only
+    if not non_empty_sections:
+        st.markdown('<div class="small-empty">No key opportunities or risks identified for the selected scope.</div>', unsafe_allow_html=True)
+        return
+
+    if len(non_empty_sections) == 1:
+        title, items = non_empty_sections[0]
+        st.subheader(title)
+        render_insight_items(items)
+        return
+
+    if len(non_empty_sections) == 2:
+        col1, col2 = st.columns(2)
+        for col, (title, items) in zip([col1, col2], non_empty_sections):
+            with col:
+                st.subheader(title)
+                render_insight_items(items)
+        return
+
+    col1, col2, col3 = st.columns(3)
+    for col, (title, items) in zip([col1, col2, col3], non_empty_sections):
+        with col:
+            st.subheader(title)
+            render_insight_items(items)
+
+
+def render_position_summary(result: dict[str, Any]) -> None:
+    st.markdown(
+        f"""
+        <div class="position-card">
+            <div class="section-kicker">Current Position</div>
+            <div style="font-size:1rem; line-height:1.75;">
+                {result.get("executive_summary", "")}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_follow_up_expander(result: dict[str, Any]) -> None:
+    follow_up = result.get("recommended_follow_up", [])
+    if not follow_up:
+        return
+
+    with st.expander("Suggested Actions"):
+        for item in follow_up:
+            st.markdown(f"- {item}")
+
 
 def render_overview(result: dict[str, Any] | None) -> None:
     if not result:
         return
 
-    # First: what matters most for BD managers
-    render_priority_sections(result)
+    # 1) Position first
+    render_position_summary(result)
 
-    st.markdown("")
-
-    # Then: short interpretation
-    st.subheader("Current Position")
-    st.write(result.get("executive_summary", ""))
-
-    st.markdown("")
-
-    # Then: compact metrics
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    # 2) Metrics directly under summary
+    c1, c2, c3 = st.columns(3)
+    with c1:
         st.metric("Overall Direction", result.get("overall_direction", "-"))
-    with col2:
+    with c2:
         st.metric("Overall Confidence", result.get("overall_confidence", "-"))
-    with col3:
+    with c3:
         st.metric("Signal Count", result.get("_meta", {}).get("signal_count", "-"))
 
+    st.markdown("")
+
+    # 3) Only show non-empty priority sections
+    render_dynamic_priority_sections(result)
+
+    st.markdown("")
+
+    # 4) Suggested Actions stays small and optional
+    render_follow_up_expander(result)
 
 def info_pill(text: str, bg: str = "#2f3542", color: str = "#ffffff") -> None:
     st.markdown(
@@ -979,19 +1105,18 @@ def render_findings(result: dict[str, Any] | None) -> None:
         st.info("Run LLM2 synthesis to see grouped findings.")
         return
 
-    # Show manager-relevant sections first
-    render_priority_sections(result)
+    # Left = grouped findings, right = manager summary blocks
+    left_col, right_col = st.columns([1.65, 1], gap="large")
 
-    st.markdown("")
+    with left_col:
+        st.subheader("Grouped Findings")
+        render_grouped_findings(result.get("grouped_findings", []))
 
-    # Then the grouped analytical layer
-    st.subheader("Grouped Findings")
-    render_grouped_findings(result.get("grouped_findings", []))
+        st.markdown("")
+        render_follow_up_expander(result)
 
-    st.markdown("")
-
-    # Follow-up comes last
-    render_follow_up_block(result)
+    with right_col:
+        render_dynamic_priority_sections(result)
 
 def render_evidence_rows(
     rows: list[dict[str, Any]],
@@ -1162,11 +1287,40 @@ def _readable_column_name(name: str) -> str:
     readable = name.replace("_", " ")
     return readable[:1].upper() + readable[1:]
 
+    def render_grouped_findings(findings: list[dict[str, Any]]) -> None:
+        if not findings:
+            st.caption("No grouped findings available.")
+            return
 
-def render_grouped_findings(findings: list[dict[str, Any]]) -> None:
-    if not findings:
-        st.info("No grouped findings available.")
-        return
+        for finding in findings:
+            title = finding.get("title", "Untitled")
+            fid = finding.get("finding_id", "")
+
+            with st.expander(f"{fid} - {title}"):
+                top1, top2, top3 = st.columns([1.1, 1.2, 2.2])
+
+                with top1:
+                    badge((finding.get("direction") or "-").capitalize(), direction_color(finding.get("direction", "")))
+
+                with top2:
+                    conf = finding.get("confidence", "-")
+                    badge(f"{conf.capitalize()} confidence", confidence_color(conf))
+
+                with top3:
+                    cats = ", ".join(finding.get("categories", []))
+                    st.markdown(f"**Categories:** {cats or '-'}")
+
+                st.markdown("**Summary**")
+                st.write(finding.get("summary", ""))
+
+                st.markdown("**Why it matters for PNTN**")
+                st.write(finding.get("why_it_matters_for_pntn", ""))
+
+                titles = finding.get("supporting_signal_titles", [])
+                if titles:
+                    st.markdown("**Supporting signals**")
+                    for title in titles:
+                        st.markdown(f"- {title}")
 
     for finding in findings:
         with st.expander(f"{finding.get('finding_id', '')} - {finding.get('title', 'Untitled')}"):
