@@ -95,8 +95,8 @@ def inject_button_styles() -> None:
         """
         <style>
         div.stButton > button {
-            padding: 0.08rem 0.50rem !important;
-            font-size: 0.78rem !important;
+            padding: 0.08rem 0.45rem !important;
+            font-size: 0.76rem !important;
             border-radius: 8px !important;
             min-height: 1.95rem !important;
             line-height: 1.0 !important;
@@ -402,21 +402,21 @@ def main() -> None:
 
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-    btn_col1, btn_col2, _ = st.columns([0.78, 0.95, 3.9], gap="small")
+    btn_col1, btn_col2, _ = st.columns([0.9, 0.9, 4.0], gap="small")
 
     with btn_col1:
         retrieve_clicked = st.button(
             "① Get Evidence",
             type="primary",
-            use_container_width=False,
+            use_container_width=True,
             help="Fetches matching signals from the database based on your sidebar filters.",
         )
 
     with btn_col2:
         synthesize_clicked = st.button(
-            "② Run LLM2 Synthesis",
+            "② Run Synthesis",
             type="primary" if can_synthesize else "secondary",
-            use_container_width=False,
+            use_container_width=True,
             help="Runs AI analysis on the retrieved evidence to generate findings and opportunities. Requires evidence first.",
         )
 
