@@ -973,7 +973,7 @@ def section_title_html(title: str, color: str) -> None:
 
     st.markdown(
         f"""
-        <div style="text-align:center; margin-bottom: 12px;">
+        <div style="margin-bottom: 12px;">
             <span style="
                 display:inline-block;
                 padding:6px 12px;
