@@ -203,6 +203,51 @@ def inject_dashboard_styles() -> None:
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
+                /* Cleaner expander headers */
+        div[data-testid="stExpander"] > details > summary {
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 2px;
+            color: rgba(255,255,255,0.9);
+        }
+        
+        div[data-testid="stExpander"] > details > summary:hover {
+            background: rgba(255,255,255,0.06);
+        }
+        
+        div[data-testid="stExpander"] > details[open] > summary {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom-color: transparent;
+        }
+        
+        div[data-testid="stExpander"] > details > div {
+            border: 1px solid rgba(255,255,255,0.08);
+            border-top: none;
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.015);
+        }
+        
+        /* Tighten tab bar */
+        div[data-testid="stTabs"] button[role="tab"] {
+            font-size: 0.88rem;
+            font-weight: 600;
+            padding: 8px 14px;
+            letter-spacing: 0.01em;
+        }
+        
+        /* Suggested Actions expander — make it stand out a bit */
+        .suggested-actions-label {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.85);
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -1062,14 +1107,21 @@ def render_position_summary(result: dict[str, Any]) -> None:
     )
 
 
+
 def render_follow_up_expander(result: dict[str, Any]) -> None:
     follow_up = result.get("recommended_follow_up", [])
     if not follow_up:
         return
 
-    with st.expander("Suggested Actions"):
-        for item in follow_up:
-            st.markdown(f"- {item}")
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    with st.expander("📋  Suggested Actions", expanded=False):
+        for i, item in enumerate(follow_up, 1):
+            st.markdown(
+                f'<div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.94rem; line-height:1.55; color:rgba(255,255,255,0.88);">'
+                f'<span style="color:rgba(255,255,255,0.35); font-size:0.8rem; margin-right:8px;">{i:02d}</span>{item}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
 def normalize_category_name(value: str) -> str:
     return (value or "").replace("&amp;", "&").strip()
@@ -1100,7 +1152,7 @@ def section_heading(title: str, subtitle: str | None = None) -> None:
         f"""
         <div style="margin-top: 8px; margin-bottom: 8px;">
             <div style="
-                font-size: 1.6rem;
+                font-size: 1.35rem;
                 font-weight: 800;
                 letter-spacing: 0.01em;
                 color: rgba(255,255,255,0.98);
@@ -1387,7 +1439,10 @@ def render_evidence_rows(
         direction_label = direction_raw.capitalize() if direction_raw != "-" else "-"
         confidence_text = confidence_label(confidence_raw)
 
-        with st.expander(f"{row.get('company') or '-'} - {title}"):
+
+        direction_hint = f"  ·  {direction_raw.capitalize()}" if direction_raw and direction_raw != "-" else ""
+        confidence_hint = f"  ·  {confidence_raw.capitalize()} confidence" if confidence_raw and confidence_raw != "-" else ""
+        with st.expander(f"{row.get('company') or '-'}  —  {title}{direction_hint}{confidence_hint}"):
             meta1, meta2, meta3, _ = st.columns([1, 1, 1.4, 3])
 
             with meta1:
@@ -1533,6 +1588,7 @@ def _readable_column_name(name: str) -> str:
     readable = name.replace("_", " ")
     return readable[:1].upper() + readable[1:]
 
+# REPLACE lines 1536–1579
 def render_grouped_finding_cards(findings: list[dict[str, Any]]) -> None:
     if not findings:
         st.caption("No grouped findings available.")
@@ -1546,37 +1602,43 @@ def render_grouped_finding_cards(findings: list[dict[str, Any]]) -> None:
         categories = finding.get("categories", [])
         titles = finding.get("supporting_signal_titles", [])
 
-        with st.container(border=True):
-            st.markdown(f"### {fid} · {title}")
+        direction_label = direction.capitalize() if direction else "-"
+        confidence_label_text = f"{confidence.capitalize()} confidence" if confidence else "-"
+        dir_color = direction_color(direction)
+        conf_color = confidence_color(confidence)
+        cats_text = ", ".join(categories) if categories else "-"
 
-            meta1, meta2, meta3 = st.columns([1.1, 1.2, 3])
+        header_html = f"""
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; pointer-events:none;">
+            <span style="font-weight:700; font-size:0.97rem; color:rgba(255,255,255,0.95);">
+                {fid} · {title}
+            </span>
+            <span style="background:{dir_color}; color:white; padding:2px 9px; border-radius:10px; font-size:0.75rem; font-weight:600;">{direction_label}</span>
+            <span style="background:{conf_color}; color:white; padding:2px 9px; border-radius:10px; font-size:0.75rem; font-weight:600;">{confidence_label_text}</span>
+            <span style="color:rgba(255,255,255,0.48); font-size:0.8rem;">{cats_text}</span>
+        </div>
+        """
 
-            with meta1:
-                badge(direction.capitalize() if direction else "-", direction_color(direction))
+        with st.expander(f"{fid} · {title}  |  {direction_label}  ·  {confidence_label_text}", expanded=False):
+            st.markdown(
+                f'<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">'
+                f'<span style="background:{dir_color}; color:white; padding:3px 10px; border-radius:10px; font-size:0.78rem; font-weight:600;">{direction_label}</span>'
+                f'<span style="background:{conf_color}; color:white; padding:3px 10px; border-radius:10px; font-size:0.78rem; font-weight:600;">{confidence_label_text}</span>'
+                f'<span style="background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.65); padding:3px 10px; border-radius:10px; font-size:0.78rem;">📂 {cats_text}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-            with meta2:
-                badge(f"{confidence.capitalize()} confidence" if confidence else "-", confidence_color(confidence))
-
-            with meta3:
-                if categories:
-                    st.markdown(f"**Categories:** {', '.join(categories)}")
-                else:
-                    st.markdown("**Categories:** -")
-
-            st.markdown("")
-
-            st.markdown("**Finding**")
+            st.markdown('<div class="finding-card-block-title">Finding</div>', unsafe_allow_html=True)
             st.write(finding.get("summary", ""))
 
-            st.markdown("**Business development relevance**")
+            st.markdown('<div class="finding-card-block-title">Business development relevance</div>', unsafe_allow_html=True)
             st.write(finding.get("why_it_matters_for_pntn", ""))
 
             if titles:
-                with st.expander("Supporting signals"):
+                with st.expander(f"Supporting signals ({len(titles)})"):
                     for signal_title in titles:
                         st.markdown(f"- {signal_title}")
-
-            st.markdown("")
 
 
 def render_grouped_findings(findings: list[dict[str, Any]]) -> None:
