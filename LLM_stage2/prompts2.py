@@ -179,21 +179,21 @@ Return JSON in exactly this format:
       "supporting_signal_titles": []
     }}
   ],
- "top_opportunities": [
-    {
+  "top_opportunities": [
+    {{
       "title": "",
       "companies": [],
       "categories": [],
       "reason": ""
-    }
+    }}
   ],
   "emerging_opportunities": [
-    {
+    {{
       "title": "",
       "companies": [],
       "categories": [],
       "reason": ""
-    }
+    }}
   ],
   "top_risks": [
     {{
