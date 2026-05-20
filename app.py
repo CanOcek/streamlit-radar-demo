@@ -1069,7 +1069,7 @@ def render_insight_items(items: list[dict[str, Any]]) -> None:
 def render_dynamic_priority_sections(result: dict[str, Any]) -> None:
     sections = [
         ("Top Opportunities", result.get("top_opportunities", []), "#2E8B57"),
-        ("Emerging Opportunities", result.get("emerging_opportunities", []), "#B5A800"),
+        ("Emerging Opportunities", result.get("emerging_opportunities", []), "#3b82f6"),
         ("Top Risks", result.get("top_risks", []), "#B22222"),
     ]
 
