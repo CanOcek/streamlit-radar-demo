@@ -1626,12 +1626,17 @@ def render_evidence_rows(
         bucket_label = bucket_raw.capitalize() if bucket_raw != "-" else "-"
         direction_label = direction_raw.capitalize() if direction_raw != "-" else "-"
         confidence_text = confidence_label(confidence_raw)
+        similarity_text = format_similarity_score(row.get("best_similarity"))
+        best_matching_field = matched_with(row)
 
 
         direction_hint = f"  ·  {direction_raw.capitalize()}" if direction_raw and direction_raw != "-" else ""
         confidence_hint = f"  ·  {confidence_raw.capitalize()} confidence" if confidence_raw and confidence_raw != "-" else ""
         with st.expander(f"{row.get('company') or '-'}  —  {title}{direction_hint}{confidence_hint}"):
-            meta1, meta2, meta3, _ = st.columns([1, 1, 1.4, 3])
+            if similarity_text:
+                meta1, meta2, meta3, meta4, _ = st.columns([1, 1, 1.4, 1.4, 2.2])
+            else:
+                meta1, meta2, meta3, _ = st.columns([1, 1, 1.4, 3])
 
             with meta1:
                 badge(bucket_label, bucket_color(bucket_raw))
@@ -1641,6 +1646,10 @@ def render_evidence_rows(
 
             with meta3:
                 badge(confidence_text, confidence_color(confidence_raw))
+
+            if similarity_text:
+                with meta4:
+                    badge(f"Similarity: {similarity_text}", "#64748b")
 
             cat_col1, cat_col2 = st.columns(2)
 
@@ -1658,16 +1667,18 @@ def render_evidence_rows(
             st.markdown(f"**Date:** {row.get('date') or '-'}")
             st.markdown(f"**Source:** {row.get('raw_url') or '-'}")
 
-            st.caption(
-                " | ".join(
-                    [
-                        f"source_id={row.get('source_id') or '-'}",
-                        f"enrichment_id={row.get('enrichment_id') or '-'}",
-                        f"pdf_segment_id={row.get('pdf_segment_id') or '-'}",
-                        f"retrieval_source={row.get('retrieval_source') or '-'}",
-                    ]
-                )
-            )
+            id_parts = [
+                f"source_id={row.get('source_id') or '-'}",
+                f"enrichment_id={row.get('enrichment_id') or '-'}",
+            ]
+            if row.get("pdf_segment_id") is not None:
+                id_parts.append(f"pdf_segment_id={row.get('pdf_segment_id')}")
+            if best_matching_field:
+                id_parts.append(f"best_matching_field={best_matching_field}")
+            if similarity_text:
+                id_parts.append(f"similarity_score={similarity_text}")
+
+            st.caption(" | ".join(id_parts))
 
             _write_text_block("Short summary", row.get("short_summary"))
             _write_text_block("Evidence", row.get("evidence"))
@@ -1907,6 +1918,15 @@ def confidence_label(confidence: str) -> str:
     return f"{value.capitalize()} confidence"
 
 
+def format_similarity_score(value: Any) -> str | None:
+    if value is None:
+        return None
+    try:
+        return f"{float(value):.2f}"
+    except (TypeError, ValueError):
+        return None
+
+
 def confidence_color(confidence: str) -> str:
     value = (confidence or "").strip().lower()
     if value == "high":
@@ -2033,7 +2053,21 @@ def matched_with(row: dict[str, Any]) -> str | None:
         return None
 
     best_match = matched_fields[0]
-    return best_match.get("field_name") or best_match.get("retrieval_source")
+    if best_match.get("retrieval_source") == "chunk_embeddings" or best_match.get("field_name") == "chunk":
+        chunk_id_label = _chunk_id_label(best_match) or _chunk_id_label(row)
+        return f"raw_chunk:{chunk_id_label}" if chunk_id_label else "raw_chunk"
+
+    return best_match.get("field_name")
+
+
+def _chunk_id_label(value: dict[str, Any]) -> str | None:
+    if value.get("webpage_chunk_id") is not None:
+        return f"webpage_chunk_id={value['webpage_chunk_id']}"
+    if value.get("pdf_chunk_id") is not None:
+        return f"pdf_chunk_id={value['pdf_chunk_id']}"
+    if value.get("chunk_index") is not None:
+        return f"chunk_index={value['chunk_index']}"
+    return None
 
 
 def _write_text_block(title: str, value: str | None) -> None:
