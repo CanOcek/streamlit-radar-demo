@@ -9,6 +9,11 @@ import streamlit as st
 
 from retrieval_core.financial_retrieval import get_indicator
 
+try:
+    import tiktoken
+except ImportError:
+    tiktoken = None
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -21,6 +26,8 @@ from LLM_stage2 import (  # noqa: E402
     retrieval_rows_to_stage1_signals,
     run_stage2_from_signals,
 )
+from LLM_stage2.formatter import format_signals_for_stage2  # noqa: E402
+from LLM_stage2.stage2_runner import infer_mode  # noqa: E402
 from retrieval_core import (  # noqa: E402
     RetrievalFilters,
     RetrievalOptions,
@@ -771,8 +778,15 @@ def retrieve_evidence(
         trademark_context = retrieve_trademark_context(scope_companies)
 
 
+    signals = retrieval_rows_to_stage1_signals(rows)
+    token_count = count_stage2_evidence_tokens(
+        signals=signals,
+        scope_companies=scope_companies,
+        scope_categories=scope_categories,
+    )
+
     st.session_state["retrieval_rows"] = rows
-    st.session_state["stage1_signals"] = retrieval_rows_to_stage1_signals(rows)
+    st.session_state["stage1_signals"] = signals
     st.session_state["related_companies"] = related_context.related_companies
     st.session_state["related_persons"] = related_context.related_persons
     st.session_state["financials"] = financial_context.financials
@@ -782,7 +796,7 @@ def retrieve_evidence(
     st.session_state.pop("stage2_result", None)
     limit_status = "Evidence limit reached." if len(rows) >= options.limit else "Evidence limit not reached."
     st.session_state["retrieval_status_message"] = (
-        f"Retrieved {len(rows)} evidence row(s). {limit_status}"
+        f"Retrieved {len(rows)} evidence row(s). {limit_status} Token count: {token_count:,}"
     )
 
 
@@ -800,6 +814,37 @@ def run_stage2_analysis(
             include_secondary=include_secondary,
         )
     st.session_state["stage2_result"] = result
+
+
+def count_stage2_evidence_tokens(
+    signals,
+    scope_companies: list[str],
+    scope_categories: list[str],
+) -> int:
+    if not signals:
+        return 0
+
+    mode = infer_mode(scope_companies, scope_categories)
+    formatted_signals = format_signals_for_stage2(signals, mode=mode)
+    return count_tokens(formatted_signals)
+
+
+def count_tokens(text: str) -> int:
+    if not text:
+        return 0
+    if tiktoken is None:
+        return max(1, round(len(text) / 4))
+
+    model = get_setting("OPENAI_MODEL", "gpt-4.1-mini")
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        try:
+            encoding = tiktoken.get_encoding("o200k_base")
+        except ValueError:
+            encoding = tiktoken.get_encoding("cl100k_base")
+    return len(encoding.encode(text))
+
 
 def render_workspace(
     rows: list[dict[str, Any]],

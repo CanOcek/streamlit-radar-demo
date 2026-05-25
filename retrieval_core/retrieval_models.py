@@ -44,7 +44,7 @@ class VectorQuerySpec:
 
 @dataclass
 class RetrievalOptions:
-    limit: int = 40
+    limit: int = 50
     include_raw_content: bool = False
     apply_limit_after_dedupe: bool = True
     min_vector_similarity: float = 0.20

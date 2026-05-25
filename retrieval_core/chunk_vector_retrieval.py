@@ -16,7 +16,7 @@ def search_chunk_embeddings(
     chunk_scopes: list[str] | None = None,
     enrichment_mode: str = "normal",
     require_enrichment: bool = True,
-    limit: int = 40,
+    limit: int = 50,
 ) -> list[dict[str, Any]]:
     if enrichment_mode not in {"normal", "noise"}:
         raise ValueError("enrichment_mode must be 'normal' or 'noise'.")

@@ -14,7 +14,7 @@ def search_enrichment_embeddings(
     query_embedding: list[float],
     filters: RetrievalFilters | None = None,
     field_names: list[str] | None = None,
-    limit: int = 40,
+    limit: int = 50,
 ) -> list[dict[str, Any]]:
     filters = filters or RetrievalFilters()
     field_names = list_or_none(field_names) or list(DEFAULT_FIELD_NAMES)

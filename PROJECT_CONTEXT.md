@@ -260,7 +260,7 @@ Important files:
 
 - `db_signal_adapter.py`: converts retrieval rows to `Stage1Signal`, including
   HTML-unescaping categories.
-- `formatter.py`: formats up to 40 signals differently by scope mode.
+- `formatter.py`: formats all retrieved signals differently by scope mode.
 - `prompts2.py`: system prompt and JSON-response user prompt template.
 - `stage2_runner.py`: retrieves when requested, calls OpenAI Chat Completions,
   parses JSON, and adds `_meta`.

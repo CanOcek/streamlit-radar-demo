@@ -38,7 +38,6 @@ Possible business suggestion:
 def format_signals_for_stage2(
     signals: List[Stage1Signal],
     mode: str,
-    max_signals: int = 40
 ) -> str:
     """
     Formats signals differently depending on scope mode.
@@ -47,15 +46,13 @@ def format_signals_for_stage2(
     if not signals:
         return "No signals available."
 
-    selected = signals[:max_signals]
-
     if mode == "company_category":
-        blocks = [_format_signal_block(signal, i) for i, signal in enumerate(selected, start=1)]
+        blocks = [_format_signal_block(signal, i) for i, signal in enumerate(signals, start=1)]
         return "\n\n---\n\n".join(blocks)
 
     if mode == "company_multi_category":
         grouped = defaultdict(list)
-        for signal in selected:
+        for signal in signals:
             grouped[signal.category].append(signal)
 
         sections = []
@@ -67,7 +64,7 @@ def format_signals_for_stage2(
 
     if mode == "multi_company_category":
         grouped = defaultdict(list)
-        for signal in selected:
+        for signal in signals:
             grouped[signal.company].append(signal)
 
         sections = []
@@ -79,7 +76,7 @@ def format_signals_for_stage2(
 
     if mode == "multi_company_multi_category":
         grouped = defaultdict(lambda: defaultdict(list))
-        for signal in selected:
+        for signal in signals:
             grouped[signal.company][signal.category].append(signal)
 
         company_sections = []
@@ -93,5 +90,5 @@ def format_signals_for_stage2(
         return "\n\n====================\n\n".join(company_sections)
 
     # fallback
-    blocks = [_format_signal_block(signal, i) for i, signal in enumerate(selected, start=1)]
+    blocks = [_format_signal_block(signal, i) for i, signal in enumerate(signals, start=1)]
     return "\n\n---\n\n".join(blocks)

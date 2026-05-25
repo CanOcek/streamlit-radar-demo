@@ -110,7 +110,7 @@ def run_stage2(
     category: str,
     include_weak: bool = True,
     include_secondary: bool = False,
-    limit: int = 40,
+    limit: int = 50,
 ) -> dict[str, Any]:
     buckets = ["main", "weak"] if include_weak else ["main"]
     filters = RetrievalFilters(

@@ -12,7 +12,7 @@ except ImportError:
 
 def fetch_enrichment_signals(
     filters: RetrievalFilters | None = None,
-    limit: int = 40,
+    limit: int = 50,
 ) -> list[dict[str, Any]]:
     filters = filters or RetrievalFilters()
 
