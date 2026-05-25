@@ -9,11 +9,6 @@ import streamlit as st
 
 from retrieval_core.financial_retrieval import get_indicator
 
-try:
-    import tiktoken
-except ImportError:
-    tiktoken = None
-
 PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -23,11 +18,13 @@ PNTN_LOGO = ASSETS_DIR / "pntn_logo.png"
 TUM_LOGO = ASSETS_DIR / "tum_logo.png"
 
 from LLM_stage2 import (  # noqa: E402
-    retrieval_rows_to_stage1_signals,
     run_stage2_from_signals,
 )
-from LLM_stage2.formatter import format_signals_for_stage2  # noqa: E402
-from LLM_stage2.stage2_runner import infer_mode  # noqa: E402
+from LLM_stage2.token_budget import (  # noqa: E402
+    limit_rows_by_stage2_tokens,
+    row_has_stage2_body,
+    stage2_token_row_key,
+)
 from retrieval_core import (  # noqa: E402
     RetrievalFilters,
     RetrievalOptions,
@@ -440,9 +437,19 @@ def main() -> None:
         evidence_limit = st.slider(
             "Evidence limit",
             min_value=1,
-            max_value=300,
+            max_value=500,
             value=50,
             step=1,
+            help="Maximum count of evidence sent to LLM2 synthesis.",
+        )
+
+        token_limit = st.slider(
+            "Token limit",
+            min_value=1_000,
+            max_value=300_000,
+            value=50_000,
+            step=1_000,
+            help="Maximum tokens of the full LLM2 input prompt.",
         )
 
         min_vector_similarity = st.slider(
@@ -452,6 +459,7 @@ def main() -> None:
             value=0.25,
             step=0.01,
             disabled=strategy == "Exact metadata fetch",
+            help="Minimum vector similarity to the query for evidence to be accepted.",
         )
 
         options = RetrievalOptions(
@@ -464,6 +472,7 @@ def main() -> None:
     if not effective_companies or not effective_categories:
         st.session_state.pop("retrieval_rows", None)
         st.session_state.pop("stage1_signals", None)
+        st.session_state.pop("stage2_token_accepted_row_keys", None)
         st.session_state.pop("stage2_result", None)
         st.session_state.pop("related_companies", None)
         st.session_state.pop("related_persons", None)
@@ -510,6 +519,7 @@ def main() -> None:
             filters=filters,
             vector_queries=vector_queries,
             options=options,
+            token_limit=token_limit,
             scope_companies=effective_companies,
             scope_categories=effective_categories,
         )
@@ -763,11 +773,12 @@ def retrieve_evidence(
     filters: RetrievalFilters,
     vector_queries: list[VectorQuerySpec],
     options: RetrievalOptions,
+    token_limit: int,
     scope_companies: list[str],
     scope_categories: list[str],
 ) -> None:
     with st.spinner("Retrieving LLM1 evidence from Postgres..."):
-        rows = retrieve_for_llm2(
+        retrieved_rows = retrieve_for_llm2(
             filters=filters,
             vector_queries=vector_queries,
             options=options,
@@ -778,15 +789,16 @@ def retrieve_evidence(
         trademark_context = retrieve_trademark_context(scope_companies)
 
 
-    signals = retrieval_rows_to_stage1_signals(rows)
-    token_count = count_stage2_evidence_tokens(
-        signals=signals,
+    token_budget = limit_rows_by_stage2_tokens(
+        rows=retrieved_rows,
         scope_companies=scope_companies,
         scope_categories=scope_categories,
+        token_limit=token_limit,
     )
 
-    st.session_state["retrieval_rows"] = rows
-    st.session_state["stage1_signals"] = signals
+    st.session_state["retrieval_rows"] = token_budget.rows
+    st.session_state["stage1_signals"] = token_budget.signals
+    st.session_state["stage2_token_accepted_row_keys"] = token_budget.accepted_row_keys
     st.session_state["related_companies"] = related_context.related_companies
     st.session_state["related_persons"] = related_context.related_persons
     st.session_state["financials"] = financial_context.financials
@@ -794,9 +806,10 @@ def retrieve_evidence(
     st.session_state["trademarks"] = trademark_context.trademarks
     st.session_state["retrieval_include_secondary_categories"] = filters.include_secondary_categories
     st.session_state.pop("stage2_result", None)
-    limit_status = "Evidence limit reached." if len(rows) >= options.limit else "Evidence limit not reached."
+    limit_status = "Evidence limit reached." if len(retrieved_rows) >= options.limit else "Evidence limit not reached."
+    token_limit_status = " Token limit reached." if token_budget.limit_reached else ""
     st.session_state["retrieval_status_message"] = (
-        f"Retrieved {len(rows)} evidence row(s). {limit_status} Token count: {token_count:,}"
+        f"Retrieved {len(token_budget.rows)} evidence row(s). {limit_status}{token_limit_status} Token count: {token_budget.token_count:,}"
     )
 
 
@@ -814,36 +827,6 @@ def run_stage2_analysis(
             include_secondary=include_secondary,
         )
     st.session_state["stage2_result"] = result
-
-
-def count_stage2_evidence_tokens(
-    signals,
-    scope_companies: list[str],
-    scope_categories: list[str],
-) -> int:
-    if not signals:
-        return 0
-
-    mode = infer_mode(scope_companies, scope_categories)
-    formatted_signals = format_signals_for_stage2(signals, mode=mode)
-    return count_tokens(formatted_signals)
-
-
-def count_tokens(text: str) -> int:
-    if not text:
-        return 0
-    if tiktoken is None:
-        return max(1, round(len(text) / 4))
-
-    model = get_setting("OPENAI_MODEL", "gpt-4.1-mini")
-    try:
-        encoding = tiktoken.encoding_for_model(model)
-    except KeyError:
-        try:
-            encoding = tiktoken.get_encoding("o200k_base")
-        except ValueError:
-            encoding = tiktoken.get_encoding("cl100k_base")
-    return len(encoding.encode(text))
 
 
 def render_workspace(
@@ -867,6 +850,7 @@ def render_workspace(
         "retrieval_include_secondary_categories",
         False,
     )
+    accepted_row_keys = st.session_state.get("stage2_token_accepted_row_keys")
 
     if not rows and result is None and not related_companies and not related_persons and not financials and not patents and not trademarks:
         return
@@ -892,6 +876,7 @@ def render_workspace(
         render_evidence_rows(
             rows,
             include_secondary_categories=include_secondary_categories,
+            accepted_row_keys=accepted_row_keys,
         )
 
     with tab_company_info:
@@ -1652,8 +1637,15 @@ def render_findings(result: dict[str, Any] | None) -> None:
 def render_evidence_rows(
     rows: list[dict[str, Any]],
     include_secondary_categories: bool = True,
+    accepted_row_keys: set[str] | None = None,
 ) -> None:
     st.subheader("Underlying LLM1 Evidence")
+    if accepted_row_keys is not None:
+        rows = [
+            row for row in rows
+            if stage2_token_row_key(row) in accepted_row_keys
+        ]
+    rows = [row for row in rows if row_has_stage2_body(row)]
     if not rows:
         st.info("No retrieved evidence available.")
         return
