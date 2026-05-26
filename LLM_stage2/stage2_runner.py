@@ -86,7 +86,7 @@ def run_stage2_from_signals(
     )
 
     response = _openai_client().chat.completions.create(
-        model=get_setting("OPENAI_MODEL", "gpt-4.1-mini"),
+        model=get_setting("OPENAI_MODEL", "gpt-5.4"),
         temperature=0,
         response_format={"type": "json_object"},
         messages=[
