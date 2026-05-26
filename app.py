@@ -63,7 +63,7 @@ SOURCE_TYPE_OPTIONS = [
 ]
 DIRECTION_OPTIONS = ["opportunity", "neutral", "risk"]
 CONFIDENCE_OPTIONS = ["high", "medium", "low"]
-SIGNAL_STRENGTH_OPTIONS = ["strong", "medium", ""]
+SIGNAL_STRENGTH_OPTIONS = ["strong", "medium"]
 CHUNK_SCOPE_OPTIONS = ["webpage_chunk", "pdf_chunk"]
 
 FULL_COMPANY_NAMES = {
@@ -669,8 +669,6 @@ def render_filter_controls(
         "Signal strength",
         SIGNAL_STRENGTH_OPTIONS,
         default=["strong", "medium"],
-        format_func=lambda value: value or "noise",
-        help="Noise signals don't have LLM1 results",
     )
 
     directions = st.multiselect(
@@ -746,18 +744,6 @@ def _render_vector_spec(query: str, key_prefix: str) -> VectorQuerySpec:
     chunk_scopes = CHUNK_SCOPE_OPTIONS
     include_noise = False
     require_chunk_enrichment = True
-    if include_chunks:
-        chunk_scopes = st.multiselect(
-            "Chunk scopes",
-            CHUNK_SCOPE_OPTIONS,
-            default=CHUNK_SCOPE_OPTIONS,
-            key=f"{key_prefix}_chunk_scopes",
-        )
-        include_noise = st.checkbox(
-            "Include noise chunk results",
-            value=False,
-            key=f"{key_prefix}_noise",
-        )
 
     return VectorQuerySpec(
         query=query,
