@@ -11,13 +11,10 @@ PRESET_COMPANIES_TEST = [
     "Stiebel Eltron",
     "BMW",
 
-    
 ]
 
-
-
 ALL_COMPANIES = [
-    #"AIDA",
+    "AIDA",
     "B. Braun",
     "BMW",
     "BNP Paribas",
@@ -26,17 +23,17 @@ ALL_COMPANIES = [
     "ECE",
     "EON",
     #"EWie Einfach",
-    #"Ehrmann",
+    "Ehrmann",
     "Epson",
-    #"Greiner Bio One",
+    "Greiner Bio One",
     #"IHK",
     "Lufthansa",
     "Olympus",
     "Penny",
     "Raiffeisen",
     #"SPD",
-    #"Scalable Capital",
-    #"Smart",
+    "Scalable Capital",
+    "Smart",
     "Stiebel Eltron",
     #"Stiftung Warentest",
 ]
