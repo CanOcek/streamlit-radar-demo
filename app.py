@@ -25,6 +25,13 @@ from LLM_stage2.token_budget import (  # noqa: E402
     row_has_stage2_body,
     stage2_token_row_key,
 )
+from chat_core import (  # noqa: E402
+    answer_from_current_evidence,
+    build_chat_context,
+    citation_sources_for_ids,
+    classify_chat_intent,
+    plan_retrieval_from_question,
+)
 from retrieval_core import (  # noqa: E402
     RetrievalFilters,
     RetrievalOptions,
@@ -478,6 +485,8 @@ def main() -> None:
         st.session_state.pop("related_persons", None)
         st.session_state.pop("financials", None)
         st.session_state.pop("retrieval_include_secondary_categories", None)
+        st.session_state.pop("retrieval_scope_companies", None)
+        st.session_state.pop("retrieval_scope_categories", None)
         st.session_state.pop("patents", None)
         st.session_state.pop("trademarks", None)
 
@@ -541,14 +550,28 @@ def main() -> None:
             )
 
     result = st.session_state.get("stage2_result")
+    workspace_companies = st.session_state.get("retrieval_scope_companies") or scope_companies
+    workspace_categories = st.session_state.get("retrieval_scope_categories") or scope_categories
+    render_evidence_chat(
+        rows=rows,
+        result=result,
+        scope_companies=effective_companies,
+        scope_categories=effective_categories,
+        selected_companies=scope_companies,
+        selected_categories=scope_categories,
+        db_options=db_options,
+        retrieval_options=options,
+        token_limit=token_limit,
+        include_secondary_categories=filters.include_secondary_categories,
+    )
     selected_directions = filters.direction or []
 
     render_workspace(
         rows=rows,
         signals=signals,
         result=result,
-        scope_companies=scope_companies,
-        scope_categories=scope_categories,
+        scope_companies=workspace_companies,
+        scope_categories=workspace_categories,
         selected_directions=selected_directions,
     )
 
@@ -791,6 +814,8 @@ def retrieve_evidence(
     st.session_state["patents"] = patent_context.patents
     st.session_state["trademarks"] = trademark_context.trademarks
     st.session_state["retrieval_include_secondary_categories"] = filters.include_secondary_categories
+    st.session_state["retrieval_scope_companies"] = scope_companies
+    st.session_state["retrieval_scope_categories"] = scope_categories
     st.session_state.pop("stage2_result", None)
     limit_status = "Evidence limit reached." if len(retrieved_rows) >= options.limit else "Evidence limit not reached."
     token_limit_status = " Token limit reached." if token_budget.limit_reached else ""
@@ -813,6 +838,315 @@ def run_stage2_analysis(
             include_secondary=include_secondary,
         )
     st.session_state["stage2_result"] = result
+
+
+def render_evidence_chat(
+    rows: list[dict[str, Any]],
+    result: dict[str, Any] | None,
+    scope_companies: list[str],
+    scope_categories: list[str],
+    selected_companies: list[str],
+    selected_categories: list[str],
+    db_options: dict[str, list[str]],
+    retrieval_options: RetrievalOptions,
+    token_limit: int,
+    include_secondary_categories: bool,
+) -> None:
+    st.markdown("### Assistant")
+    st.caption("Ask follow-up questions about the evidence currently loaded in this session.")
+
+    chat_messages = st.session_state.setdefault("chat_messages", [])
+
+    clear_col, _ = st.columns([1, 5])
+    with clear_col:
+        if st.button("Clear chat", use_container_width=True):
+            st.session_state["chat_messages"] = []
+            st.rerun()
+
+    for message in chat_messages:
+        _render_chat_message(message)
+
+    question = st.chat_input("Ask about the retrieved evidence")
+    if not question:
+        return
+
+    chat_history = list(chat_messages)
+    chat_messages.append({"role": "user", "content": question})
+
+    intent = classify_chat_intent(
+        question,
+        has_loaded_evidence=bool(rows),
+    )
+
+    if intent == "run_structured_synthesis":
+        chat_messages.append(
+            {
+                "role": "assistant",
+                "content": "Chat-triggered structured synthesis is planned for the next sprint. Use the Synthesis button for now.",
+                "citation_sources": [],
+                "evidence_count": 0,
+                "selected_evidence_count": 0,
+                "omitted_evidence_count": 0,
+            }
+        )
+        st.rerun()
+
+    if intent == "retrieve_more_evidence":
+        _handle_chat_retrieval(
+            question=question,
+            chat_history=chat_history,
+            chat_messages=chat_messages,
+            selected_companies=selected_companies,
+            selected_categories=selected_categories,
+            fallback_companies=scope_companies,
+            fallback_categories=scope_categories,
+            db_options=db_options,
+            retrieval_options=retrieval_options,
+            token_limit=token_limit,
+            include_secondary_categories=include_secondary_categories,
+        )
+        st.rerun()
+
+    if not rows:
+        chat_messages.append(
+            {
+                "role": "assistant",
+                "content": (
+                    "No retrieved evidence is loaded yet. Use the Evidence button first, "
+                    "then ask a follow-up question."
+                ),
+                "citation_sources": [],
+                "evidence_count": 0,
+                "selected_evidence_count": 0,
+                "omitted_evidence_count": 0,
+            }
+        )
+        st.rerun()
+
+    context = build_chat_context(
+        rows=rows,
+        stage2_result=result,
+        scope_companies=scope_companies,
+        scope_categories=scope_categories,
+    )
+
+    try:
+        with st.spinner("Answering from loaded evidence..."):
+            answer = answer_from_current_evidence(
+                question=question,
+                chat_history=chat_history,
+                context=context,
+            )
+        citation_sources = citation_sources_for_ids(
+            context,
+            answer.cited_evidence_ids,
+        )
+        chat_messages.append(
+            {
+                "role": "assistant",
+                "content": answer.content,
+                "citation_sources": citation_sources,
+                "evidence_count": answer.evidence_count,
+                "selected_evidence_count": answer.selected_evidence_count,
+                "omitted_evidence_count": answer.omitted_evidence_count,
+            }
+        )
+    except Exception as exc:
+        chat_messages.append(
+            {
+                "role": "assistant",
+                "content": f"Could not answer from the loaded evidence: {exc}",
+                "citation_sources": [],
+                "evidence_count": 0,
+                "selected_evidence_count": 0,
+                "omitted_evidence_count": 0,
+            }
+        )
+
+    st.rerun()
+
+
+def _handle_chat_retrieval(
+    question: str,
+    chat_history: list[dict[str, Any]],
+    chat_messages: list[dict[str, Any]],
+    selected_companies: list[str],
+    selected_categories: list[str],
+    fallback_companies: list[str],
+    fallback_categories: list[str],
+    db_options: dict[str, list[str]],
+    retrieval_options: RetrievalOptions,
+    token_limit: int,
+    include_secondary_categories: bool,
+) -> None:
+    available_companies = preset_or_database_options(
+        preset_values=PRESET_COMPANIES,
+        database_values=db_options.get("companies") or [],
+    )
+    available_categories = preset_or_database_options(
+        preset_values=PRESET_CATEGORIES,
+        database_values=all_category_options(db_options),
+    )
+    plan = plan_retrieval_from_question(
+        question=question,
+        available_companies=available_companies,
+        available_categories=available_categories,
+        selected_companies=selected_companies,
+        selected_categories=selected_categories,
+        fallback_companies=fallback_companies,
+        fallback_categories=fallback_categories,
+        base_options=retrieval_options,
+        include_secondary_categories=include_secondary_categories,
+    )
+
+    if plan.needs_clarification:
+        chat_messages.append(
+            {
+                "role": "assistant",
+                "content": plan.clarification,
+                "citation_sources": [],
+                "evidence_count": 0,
+                "selected_evidence_count": 0,
+                "omitted_evidence_count": 0,
+            }
+        )
+        return
+
+    with st.spinner("Retrieving evidence from the database..."):
+        retrieved_rows = retrieve_for_llm2(
+            filters=plan.filters,
+            vector_queries=plan.vector_queries,
+            options=plan.options,
+        )
+        related_context = retrieve_related_context(plan.scope_companies)
+        financial_context = retrieve_financial_context(plan.scope_companies)
+        patent_context = retrieve_patent_context(plan.scope_companies)
+        trademark_context = retrieve_trademark_context(plan.scope_companies)
+
+    token_budget = limit_rows_by_stage2_tokens(
+        rows=retrieved_rows,
+        scope_companies=plan.scope_companies,
+        scope_categories=plan.scope_categories,
+        token_limit=token_limit,
+    )
+
+    st.session_state["retrieval_rows"] = token_budget.rows
+    st.session_state["stage1_signals"] = token_budget.signals
+    st.session_state["stage2_token_accepted_row_keys"] = token_budget.accepted_row_keys
+    st.session_state["related_companies"] = related_context.related_companies
+    st.session_state["related_persons"] = related_context.related_persons
+    st.session_state["financials"] = financial_context.financials
+    st.session_state["patents"] = patent_context.patents
+    st.session_state["trademarks"] = trademark_context.trademarks
+    st.session_state["retrieval_include_secondary_categories"] = include_secondary_categories
+    st.session_state["retrieval_scope_companies"] = plan.scope_companies
+    st.session_state["retrieval_scope_categories"] = plan.scope_categories
+    st.session_state.pop("stage2_result", None)
+
+    if not token_budget.rows:
+        chat_messages.append(
+            {
+                "role": "assistant",
+                "content": f"{plan.summary}\n\nNo evidence rows were found for that retrieval.",
+                "citation_sources": [],
+                "evidence_count": 0,
+                "selected_evidence_count": 0,
+                "omitted_evidence_count": 0,
+            }
+        )
+        return
+
+    context = build_chat_context(
+        rows=token_budget.rows,
+        stage2_result=None,
+        scope_companies=plan.scope_companies,
+        scope_categories=plan.scope_categories,
+    )
+    try:
+        with st.spinner("Answering from newly retrieved evidence..."):
+            answer = answer_from_current_evidence(
+                question=question,
+                chat_history=chat_history,
+                context=context,
+            )
+        citation_sources = citation_sources_for_ids(
+            context,
+            answer.cited_evidence_ids,
+        )
+        token_limit_status = " Token limit reached." if token_budget.limit_reached else ""
+        chat_messages.append(
+            {
+                "role": "assistant",
+                "content": (
+                    f"{plan.summary} Retrieved {len(token_budget.rows)} evidence row(s)."
+                    f"{token_limit_status}\n\n{answer.content}"
+                ),
+                "citation_sources": citation_sources,
+                "evidence_count": answer.evidence_count,
+                "selected_evidence_count": answer.selected_evidence_count,
+                "omitted_evidence_count": answer.omitted_evidence_count,
+            }
+        )
+    except Exception as exc:
+        chat_messages.append(
+            {
+                "role": "assistant",
+                "content": (
+                    f"{plan.summary} Retrieved {len(token_budget.rows)} evidence row(s), "
+                    f"but could not generate a chat answer: {exc}"
+                ),
+                "citation_sources": [],
+                "evidence_count": len(token_budget.rows),
+                "selected_evidence_count": len(token_budget.rows),
+                "omitted_evidence_count": 0,
+            }
+        )
+
+
+def _render_chat_message(message: dict[str, Any]) -> None:
+    role = message.get("role") or "assistant"
+    with st.chat_message(role):
+        st.write(message.get("content") or "")
+
+        sources = message.get("citation_sources") or []
+        evidence_count = message.get("evidence_count")
+        selected_count = message.get("selected_evidence_count")
+        omitted_count = message.get("omitted_evidence_count")
+        if evidence_count:
+            if selected_count is not None and omitted_count is not None:
+                st.caption(
+                    f"Evidence items considered: {selected_count} of {evidence_count}"
+                    + (
+                        f" ({omitted_count} omitted by chat budget)"
+                        if omitted_count
+                        else ""
+                    )
+                )
+            else:
+                st.caption(f"Evidence items considered: {evidence_count}")
+        if sources:
+            with st.expander("Sources"):
+                for source in sources:
+                    _render_chat_source(source)
+
+
+def _render_chat_source(source: dict[str, Any]) -> None:
+    citation_id = source.get("citation_id") or "Evidence"
+    title = source.get("title") or "Untitled"
+    company = source.get("company") or "-"
+    st.markdown(f"**{citation_id}: {title}**")
+    st.caption(company)
+    if source.get("url"):
+        st.write(source["url"])
+
+    meta_parts = []
+    for key in ("source_id", "enrichment_id", "pdf_segment_id"):
+        if source.get(key) is not None:
+            meta_parts.append(f"{key}={source[key]}")
+    if source.get("best_similarity") is not None:
+        meta_parts.append(f"similarity={source['best_similarity']:.2f}")
+    if meta_parts:
+        st.caption(" | ".join(meta_parts))
 
 
 def render_workspace(
