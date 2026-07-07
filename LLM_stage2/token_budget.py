@@ -6,12 +6,10 @@ try:
 except ImportError:
     tiktoken = None
 
-from shared.settings import get_setting
-
 from .db_signal_adapter import retrieval_rows_to_stage1_signals
 from .formatter import format_signals_for_stage2
 from .prompts2 import STAGE2_SYSTEM_PROMPT, build_stage2_user_prompt
-from .stage2_runner import infer_mode
+from .stage2_runner import get_stage2_model, infer_mode
 
 
 LLM2_BODY_FIELDS = (
@@ -126,9 +124,8 @@ def count_tokens(text: str) -> int:
     if tiktoken is None:
         return max(1, round(len(text) / 4))
 
-    model = get_setting("OPENAI_MODEL", "gpt-4.1-mini")
     try:
-        encoding = tiktoken.encoding_for_model(model)
+        encoding = tiktoken.encoding_for_model(get_stage2_model())
     except KeyError:
         try:
             encoding = tiktoken.get_encoding("o200k_base")

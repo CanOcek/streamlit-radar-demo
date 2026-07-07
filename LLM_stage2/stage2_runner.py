@@ -24,6 +24,12 @@ from .schemas import Stage1Signal
 
 load_dotenv(PROJECT_ROOT / ".env")
 
+DEFAULT_STAGE2_MODEL = "gpt-5.4"
+
+
+def get_stage2_model() -> str:
+    return get_setting("OPENAI_MODEL", DEFAULT_STAGE2_MODEL) or DEFAULT_STAGE2_MODEL
+
 
 def infer_mode(companies: list[str], categories: list[str]) -> str:
     if len(companies) == 1 and len(categories) == 1:
@@ -86,7 +92,7 @@ def run_stage2_from_signals(
     )
 
     response = _openai_client().chat.completions.create(
-        model=get_setting("OPENAI_MODEL", "gpt-5.4"),
+        model=get_stage2_model(),
         temperature=0,
         response_format={"type": "json_object"},
         messages=[

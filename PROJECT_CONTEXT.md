@@ -1,7 +1,7 @@
 # Streamlit Radar Demo Project Context
 
 This file is the current source map for future work on this repository. It was
-rebuilt from the repository contents on 2026-05-19. Treat source files as the
+rebuilt from the repository contents on 2026-07-07. Treat source files as the
 final authority when behavior and documentation disagree.
 
 ## What This Repository Is
@@ -13,7 +13,8 @@ OpenAI-powered LLM2 synthesis on demand.
 
 This repository intentionally does not crawl, parse PDFs, enrich sources, embed
 documents, schedule jobs, or initialize a local database. Those responsibilities
-belong to the sibling backend repository `business-development-radar`.
+belong to the sibling backend repository `busdevrad-collector`. The older
+`business-development-radar` folder is not the active backend handoff target.
 
 The runtime flow is:
 
@@ -60,9 +61,9 @@ populated Postgres/pgvector database
 │   ├── formatter.py
 │   ├── prompts2.py
 │   └── stage2_runner.py
-└── ui/assets/
-    ├── pntn_logo.png
-    └── tum_logo.png
+├── ui/assets/
+│   ├── pntn_logo.png
+│   └── tum_logo.png
 ```
 
 Generated/local state can exist: `.git/`, `.idea/`, `.venv/`, `__pycache__/`,
@@ -88,7 +89,7 @@ secrets:
 
 - `APP_PASSWORD`: required by the login gate.
 - `OPEN_AI_API_KEY` or `OPENAI_API_KEY`: required for query embeddings and LLM2.
-- `OPENAI_MODEL`: optional; defaults to `gpt-4.1-mini`.
+- `OPENAI_MODEL`: optional Stage 2 model override; defaults to `gpt-5.4`.
 - `DATABASE_URL`: preferred single Postgres connection string.
 - Or separate Postgres settings: `POSTGRES_HOST`, `POSTGRES_PORT`,
   `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_SSLMODE`.
@@ -278,7 +279,7 @@ The OpenAI call uses:
 ```python
 response_format={"type": "json_object"}
 temperature=0
-model=get_setting("OPENAI_MODEL", "gpt-4.1-mini")
+model=get_stage2_model()  # OPENAI_MODEL or "gpt-5.4"
 ```
 
 If no signals are available, LLM2 returns a neutral low-confidence empty result
@@ -313,7 +314,7 @@ embeddings from `text-embedding-3-large`.
 
 ## Relationship To Backend Repo
 
-The sibling `business-development-radar` repository is responsible for:
+The sibling `busdevrad-collector` repository is responsible for:
 
 - crawling configured sources
 - storing raw webpages, PDFs, and North Data
@@ -329,9 +330,10 @@ unless the project direction explicitly changes.
 
 ## Known Caveats
 
-- No formal test suite exists.
+- There is no comprehensive UI or database integration test suite.
 - `APP_PASSWORD` is required even for local use.
-- Vector search and LLM2 require network/API access and an OpenAI key.
+- Vector search and LLM2 require network/API access and an OpenAI key with
+  access to the configured Stage 2 model, which defaults to `gpt-5.4`.
 - `postgres/init.sql` is reference-only in this repo.
 - Chunk retrieval does not cover North Data chunks.
 - Supplemental North Data context functions swallow exceptions and return empty

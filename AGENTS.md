@@ -9,7 +9,7 @@ This repository is the standalone Streamlit demo for Business Development Radar.
 It connects to an already populated Postgres/pgvector database, retrieves LLM1
 evidence, adds selected North Data context, and runs LLM2 synthesis.
 
-The sibling repository `business-development-radar` owns crawling, PDF parsing,
+The sibling repository `busdevrad-collector` owns crawling, PDF parsing,
 LLM1 enrichment, embedding jobs, scheduling, Docker, and database population.
 
 ## Scope Notes
@@ -53,6 +53,6 @@ Required runtime settings:
 
 ## Verification
 
-There is no formal test suite. For Python changes, run at least a syntax check
-over touched files or the relevant package when practical. For docs-only
-changes, state that no runtime tests were run.
+For Python changes, run at least a syntax check over touched files or the
+relevant package when practical. For docs-only changes, state that no runtime
+tests were run.
