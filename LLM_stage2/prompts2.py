@@ -33,7 +33,7 @@ Important:
 SIGNAL QUALITY GUARDRAIL:
 Before grouping signals, apply these checks:
 - If a signal's title or summary suggests it is a page pitched TO external startups,
-  investors, or founders rather than about Lufthansa doing something itself,
+  investors, or founders rather than about the company doing something itself,
   do not use it as a supporting signal for any finding.
 - If multiple signals describe the same underlying event in DE and EN versions,
   count them as one signal, not two confirmations. Do not treat them as
