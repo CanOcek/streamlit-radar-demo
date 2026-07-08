@@ -1,7 +1,11 @@
 # New file: financial_retrieval.py
 
+import logging
+
 from .retrieval_models import FinancialContext
 from shared.db import get_db_connection
+
+log = logging.getLogger(__name__)
 
 
 def retrieve_financial_context(companies: list[str]) -> FinancialContext:
@@ -33,6 +37,7 @@ def retrieve_financial_context(companies: list[str]) -> FinancialContext:
         finally:
             conn.close()
     except Exception:
+        log.exception("Failed to retrieve North Data financial context")
         return FinancialContext(financials=[])
 
 

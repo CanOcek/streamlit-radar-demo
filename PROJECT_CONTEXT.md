@@ -178,7 +178,8 @@ Defaults in `retrieval_core/retrieval_utils.py`:
   `why_it_matters_for_pntn`, `possible_business_suggestion`
 - buckets: `main`, `weak`
 - source types: `webpages`, `pdfs`
-- chunk scopes: `webpage_chunk`, `pdf_chunk`
+- chunk scopes: `webpage_chunk`, `pdf_chunk`, `northdata_publication_chunk`,
+  `northdata_event_chunk`
 
 The UI overrides source types to:
 
@@ -210,6 +211,8 @@ webpages, PDFs, North Data publications, and North Data events.
 
 - `webpage_chunk`
 - `pdf_chunk`
+- `northdata_publication_chunk`
+- `northdata_event_chunk`
 
 It supports:
 
@@ -219,7 +222,9 @@ It supports:
 - filters for company, page type, bucket, signal strength, direction,
   confidence, category, secondary category, and source type
 
-Chunk retrieval currently handles webpage/PDF chunks, not North Data chunks.
+North Data chunk retrieval requires the backend 20260708 SQL migration and
+North Data chunk embeddings created by `embed-northdata-chunks` or
+`process-northdata`.
 Noise chunk retrieval is only triggered when category filters are not active.
 
 ## Result Consolidation And Hydration
@@ -249,8 +254,8 @@ The app retrieves extra context outside the main LLM1 evidence path:
 - `patents_trademarks_retrieval.py`: Patent and Trademark events from
   `northdata_events`.
 
-These functions return empty contexts on errors so the demo remains usable if a
-table or query fails.
+These functions log failures and return empty contexts on errors so the demo
+remains usable if a table or query fails.
 
 ## LLM2 Synthesis
 
@@ -284,9 +289,6 @@ model=get_stage2_model()  # OPENAI_MODEL or "gpt-5.4"
 
 If no signals are available, LLM2 returns a neutral low-confidence empty result
 without calling OpenAI.
-
-The LLM2 prompt still contains some source-specific guardrail wording, including
-Lufthansa examples. Review it before presenting the demo as fully generalized.
 
 ## Database Shape Expected
 
@@ -335,13 +337,10 @@ unless the project direction explicitly changes.
 - Vector search and LLM2 require network/API access and an OpenAI key with
   access to the configured Stage 2 model, which defaults to `gpt-5.4`.
 - `postgres/init.sql` is reference-only in this repo.
-- Chunk retrieval does not cover North Data chunks.
-- Supplemental North Data context functions swallow exceptions and return empty
-  results, which is good for demo resilience but can hide DB issues.
-- `stage2_runner.py` still adds a non-existent `scripts/` directory to
-  `sys.path`; it is harmless but a carryover from the backend layout.
-- The prompt has some source-specific examples that should be generalized before
-  final reporting.
+- North Data chunk retrieval requires the backend chunk schema migration and
+  populated North Data chunk embeddings.
+- Supplemental North Data context functions log exceptions and return empty
+  results so optional context failures do not break the demo.
 - `.env` and Streamlit secrets may contain credentials; never print them.
 
 ## Development Guidance

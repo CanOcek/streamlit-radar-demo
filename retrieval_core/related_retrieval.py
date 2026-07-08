@@ -1,5 +1,9 @@
+import logging
+
 from .retrieval_models import RelatedContext
 from shared.db import get_db_connection
+
+log = logging.getLogger(__name__)
 
 
 def retrieve_related_context(companies: list[str]) -> RelatedContext:
@@ -38,4 +42,5 @@ def retrieve_related_context(companies: list[str]) -> RelatedContext:
         finally:
             conn.close()
     except Exception:
+        log.exception("Failed to retrieve North Data related-company/person context")
         return RelatedContext(related_companies=[], related_persons=[])

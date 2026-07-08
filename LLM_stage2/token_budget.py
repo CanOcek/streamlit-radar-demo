@@ -58,25 +58,26 @@ def limit_rows_by_stage2_tokens(
             accepted_row_keys={row["_stage2_token_key"] for row in body_rows},
         )
 
-    limited_rows: list[dict[str, Any]] = []
-    limited_signals: list[Any] = []
+    low = 0
+    high = len(signals)
     limited_token_count = 0
 
-    for row, signal in zip(body_rows, signals):
-        candidate_signals = limited_signals + [signal]
+    while low < high:
+        mid = (low + high + 1) // 2
+        candidate_signals = signals[:mid]
         candidate_token_count = count_stage2_input_tokens(
             signals=candidate_signals,
             scope_companies=scope_companies,
             scope_categories=scope_categories,
         )
-        # Evidence rows are atomic for LLM2: if the next full row plus prompt
-        # overhead does not fit, exclude it instead of truncating its text.
-        if candidate_token_count > token_limit:
-            break
+        if candidate_token_count <= token_limit:
+            low = mid
+            limited_token_count = candidate_token_count
+        else:
+            high = mid - 1
 
-        limited_rows.append(row)
-        limited_signals = candidate_signals
-        limited_token_count = candidate_token_count
+    limited_rows = body_rows[:low]
+    limited_signals = signals[:low]
 
     return Stage2TokenBudget(
         rows=limited_rows,
@@ -153,6 +154,8 @@ def _row_key(row: dict[str, Any], idx: int) -> str:
         row.get("pdf_segment_id"),
         row.get("webpage_chunk_id"),
         row.get("pdf_chunk_id"),
+        row.get("northdata_publication_chunk_id"),
+        row.get("northdata_event_chunk_id"),
         row.get("chunk_index"),
         row.get("hit_type"),
         row.get("retrieval_source"),

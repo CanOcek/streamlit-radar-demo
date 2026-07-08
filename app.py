@@ -64,7 +64,13 @@ SOURCE_TYPE_OPTIONS = [
 DIRECTION_OPTIONS = ["opportunity", "neutral", "risk"]
 CONFIDENCE_OPTIONS = ["high", "medium", "low"]
 SIGNAL_STRENGTH_OPTIONS = ["strong", "medium"]
-CHUNK_SCOPE_OPTIONS = ["webpage_chunk", "pdf_chunk"]
+EVIDENCE_PAGE_SIZE = 25
+CHUNK_SCOPE_OPTIONS = [
+    "webpage_chunk",
+    "pdf_chunk",
+    "northdata_publication_chunk",
+    "northdata_event_chunk",
+]
 
 FULL_COMPANY_NAMES = {
     "BMW": "Bayerische Motoren Werke AG",
@@ -547,8 +553,8 @@ def main() -> None:
         rows=rows,
         signals=signals,
         result=result,
-        scope_companies=scope_companies,
-        scope_categories=scope_categories,
+        scope_companies=effective_companies,
+        scope_categories=effective_categories,
         selected_directions=selected_directions,
     )
 
@@ -1636,7 +1642,9 @@ def render_evidence_rows(
         st.info("No retrieved evidence available.")
         return
 
-    for row in rows:
+    display_rows = paginated_evidence_rows(rows)
+
+    for row in display_rows:
         title = row.get("title") or row.get("heading") or "Untitled"
         secondary_categories = row.get("secondary_categories") or []
 
@@ -1708,6 +1716,64 @@ def render_evidence_rows(
             _write_text_block("Why it matters for PNTN", row.get("why_it_matters_for_pntn"))
             _write_text_block("Possible business suggestion", row.get("possible_business_suggestion"))
             _write_text_block("Full raw content", row.get("raw_content"))
+
+
+def paginated_evidence_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    total_rows = len(rows)
+    total_pages = max(1, (total_rows + EVIDENCE_PAGE_SIZE - 1) // EVIDENCE_PAGE_SIZE)
+    page_key = "evidence_page_number"
+
+    current_page = int(st.session_state.get(page_key, 1) or 1)
+    current_page = min(max(current_page, 1), total_pages)
+    st.session_state[page_key] = current_page
+
+    st.caption(
+        f"{total_rows} accepted evidence row(s). "
+        "All accepted rows remain available for synthesis."
+    )
+
+    if total_pages > 1:
+        summary_col, prev_col, page_col, next_col = st.columns([2.4, 0.8, 1.2, 0.8])
+
+        with summary_col:
+            start_row = (current_page - 1) * EVIDENCE_PAGE_SIZE + 1
+            end_row = min(current_page * EVIDENCE_PAGE_SIZE, total_rows)
+            st.caption(f"Showing rows {start_row}-{end_row} of {total_rows}")
+
+        with prev_col:
+            if st.button(
+                "Previous",
+                disabled=current_page <= 1,
+                key="evidence_prev_page",
+                use_container_width=True,
+            ):
+                st.session_state[page_key] = current_page - 1
+                st.rerun()
+
+        with page_col:
+            st.markdown(
+                f"<div style='text-align:center; padding-top:0.35rem;'>"
+                f"Page {current_page} / {total_pages}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+        with next_col:
+            if st.button(
+                "Next",
+                disabled=current_page >= total_pages,
+                key="evidence_next_page",
+                use_container_width=True,
+            ):
+                st.session_state[page_key] = current_page + 1
+                st.rerun()
+
+    else:
+        st.session_state[page_key] = 1
+
+    start_idx = (current_page - 1) * EVIDENCE_PAGE_SIZE
+    end_idx = start_idx + EVIDENCE_PAGE_SIZE
+    return rows[start_idx:end_idx]
 
 def render_category_summary(
     rows: list[dict[str, Any]],
@@ -1991,6 +2057,16 @@ def load_filter_options() -> tuple[dict[str, list[str]], str | None]:
                         SELECT company FROM webpages
                         UNION
                         SELECT company FROM pdfs
+                        UNION
+                        SELECT company_name AS company FROM northdata_publications
+                        UNION
+                        SELECT company_name AS company FROM northdata_events
+                        UNION
+                        SELECT company_name AS company FROM northdata_companies
+                        UNION
+                        SELECT related_to AS company FROM northdata_related_companies
+                        UNION
+                        SELECT related_to AS company FROM northdata_related_persons
                     ) companies
                     WHERE company IS NOT NULL AND company <> ''
                     ORDER BY company
@@ -2067,6 +2143,10 @@ def _table_row(row: dict[str, Any]) -> dict[str, Any]:
         "source_id": row.get("source_id"),
         "enrichment_id": row.get("enrichment_id"),
         "pdf_segment_id": row.get("pdf_segment_id"),
+        "webpage_chunk_id": row.get("webpage_chunk_id"),
+        "pdf_chunk_id": row.get("pdf_chunk_id"),
+        "northdata_publication_chunk_id": row.get("northdata_publication_chunk_id"),
+        "northdata_event_chunk_id": row.get("northdata_event_chunk_id"),
     }
 
 
@@ -2088,6 +2168,10 @@ def _chunk_id_label(value: dict[str, Any]) -> str | None:
         return f"webpage_chunk_id={value['webpage_chunk_id']}"
     if value.get("pdf_chunk_id") is not None:
         return f"pdf_chunk_id={value['pdf_chunk_id']}"
+    if value.get("northdata_publication_chunk_id") is not None:
+        return f"northdata_publication_chunk_id={value['northdata_publication_chunk_id']}"
+    if value.get("northdata_event_chunk_id") is not None:
+        return f"northdata_event_chunk_id={value['northdata_event_chunk_id']}"
     if value.get("chunk_index") is not None:
         return f"chunk_index={value['chunk_index']}"
     return None

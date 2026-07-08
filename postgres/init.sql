@@ -219,42 +219,6 @@ CREATE TABLE enrichment_embeddings (
     UNIQUE (enrichment_id, field_name)
 );
 
-CREATE TABLE chunk_embeddings (
-    id BIGSERIAL PRIMARY KEY,
-    source_id BIGINT NOT NULL REFERENCES all_sources(id) ON DELETE CASCADE,
-
-    content_scope TEXT NOT NULL CHECK (
-        content_scope IN ('webpage_chunk', 'pdf_chunk')
-    ),
-
-    webpage_chunk_id BIGINT REFERENCES webpage_chunks(id) ON DELETE CASCADE,
-    pdf_chunk_id BIGINT REFERENCES pdf_chunks(id) ON DELETE CASCADE,
-
-    chunk_index INT NOT NULL,
-    chunk_text TEXT NOT NULL,
-    chunk_type TEXT NOT NULL DEFAULT 'raw_text',
-    token_count INT,
-
-    embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-large',
-    embedding VECTOR(3072),
-    created_at TIMESTAMP DEFAULT NOW(),
-
-    CHECK (
-        (
-            content_scope = 'webpage_chunk'
-            AND webpage_chunk_id IS NOT NULL
-            AND pdf_chunk_id IS NULL
-        )
-        OR
-        (
-            content_scope = 'pdf_chunk'
-            AND pdf_chunk_id IS NOT NULL
-            AND webpage_chunk_id IS NULL
-        )
-    )
-
-);
-
 CREATE TABLE IF NOT EXISTS northdata_publications (
     id BIGINT PRIMARY KEY REFERENCES all_sources(id) ON DELETE CASCADE,
 
@@ -269,6 +233,8 @@ CREATE TABLE IF NOT EXISTS northdata_publications (
    html TEXT,
 
    date TEXT,
+   source_tag TEXT,
+   crawl_method TEXT,
 
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -287,6 +253,8 @@ CREATE TABLE northdata_companies (
     history    JSONB,
     financials JSONB,
     freshest_financial_date TEXT,
+    source_tag TEXT,
+    crawl_method TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -300,6 +268,8 @@ CREATE TABLE northdata_events (
     type TEXT NOT NULL,
 
     date TEXT NOT NULL,
+    source_tag TEXT,
+    crawl_method TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
 
     CONSTRAINT uq_company_event UNIQUE (company_name, description, date)
@@ -316,6 +286,8 @@ CREATE TABLE northdata_related_companies (
     description TEXT,
     status TEXT,
     roles JSONB,
+    source_tag TEXT,
+    crawl_method TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     CONSTRAINT uq_company_related_to_role UNIQUE (related_to, company_name)
 
@@ -328,6 +300,8 @@ CREATE TABLE northdata_related_persons (
     full_name TEXT NOT NULL,
     description TEXT NOT NULL,
     roles JSONB,
+    source_tag TEXT,
+    crawl_method TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     CONSTRAINT uq_person_related_name_role UNIQUE (full_name, related_to, description)
 );
@@ -341,8 +315,101 @@ CREATE TABLE northdata_sheets (
     level INT,
     values JSONB,
     freshest_date TEXT NOT NULL,
+    source_tag TEXT,
+    crawl_method TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     CONSTRAINT uq_company_sheet_name_value UNIQUE (company_name, name, freshest_date)
+);
+
+CREATE TABLE northdata_publication_chunks (
+    id BIGSERIAL PRIMARY KEY,
+    publication_id BIGINT NOT NULL REFERENCES northdata_publications(id) ON DELETE CASCADE,
+
+    chunk_index INT NOT NULL,
+    chunk_text TEXT NOT NULL,
+    token_count INT,
+
+    meta JSONB,
+    created_at TIMESTAMP DEFAULT NOW(),
+
+    UNIQUE (publication_id, chunk_index)
+);
+
+CREATE TABLE northdata_event_chunks (
+    id BIGSERIAL PRIMARY KEY,
+    event_id BIGINT NOT NULL REFERENCES northdata_events(id) ON DELETE CASCADE,
+
+    chunk_index INT NOT NULL,
+    chunk_text TEXT NOT NULL,
+    token_count INT,
+
+    meta JSONB,
+    created_at TIMESTAMP DEFAULT NOW(),
+
+    UNIQUE (event_id, chunk_index)
+);
+
+CREATE TABLE chunk_embeddings (
+    id BIGSERIAL PRIMARY KEY,
+    source_id BIGINT NOT NULL REFERENCES all_sources(id) ON DELETE CASCADE,
+
+    content_scope TEXT NOT NULL CHECK (
+        content_scope IN (
+            'webpage_chunk',
+            'pdf_chunk',
+            'northdata_publication_chunk',
+            'northdata_event_chunk'
+        )
+    ),
+
+    webpage_chunk_id BIGINT REFERENCES webpage_chunks(id) ON DELETE CASCADE,
+    pdf_chunk_id BIGINT REFERENCES pdf_chunks(id) ON DELETE CASCADE,
+    northdata_publication_chunk_id BIGINT REFERENCES northdata_publication_chunks(id) ON DELETE CASCADE,
+    northdata_event_chunk_id BIGINT REFERENCES northdata_event_chunks(id) ON DELETE CASCADE,
+
+    chunk_index INT NOT NULL,
+    chunk_text TEXT NOT NULL,
+    chunk_type TEXT NOT NULL DEFAULT 'raw_text',
+    token_count INT,
+
+    embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-large',
+    embedding VECTOR(3072),
+    created_at TIMESTAMP DEFAULT NOW(),
+
+    CHECK (
+        (
+            content_scope = 'webpage_chunk'
+            AND webpage_chunk_id IS NOT NULL
+            AND pdf_chunk_id IS NULL
+            AND northdata_publication_chunk_id IS NULL
+            AND northdata_event_chunk_id IS NULL
+        )
+        OR
+        (
+            content_scope = 'pdf_chunk'
+            AND pdf_chunk_id IS NOT NULL
+            AND webpage_chunk_id IS NULL
+            AND northdata_publication_chunk_id IS NULL
+            AND northdata_event_chunk_id IS NULL
+        )
+        OR
+        (
+            content_scope = 'northdata_publication_chunk'
+            AND northdata_publication_chunk_id IS NOT NULL
+            AND webpage_chunk_id IS NULL
+            AND pdf_chunk_id IS NULL
+            AND northdata_event_chunk_id IS NULL
+        )
+        OR
+        (
+            content_scope = 'northdata_event_chunk'
+            AND northdata_event_chunk_id IS NOT NULL
+            AND webpage_chunk_id IS NULL
+            AND pdf_chunk_id IS NULL
+            AND northdata_publication_chunk_id IS NULL
+        )
+    )
+
 );
 
 
@@ -355,6 +422,12 @@ CREATE INDEX chunk_embeddings_source_id_idx
 CREATE INDEX webpage_chunks_webpage_id_idx
     ON webpage_chunks(webpage_id);
 
+CREATE INDEX northdata_publication_chunks_publication_id_idx
+    ON northdata_publication_chunks(publication_id);
+
+CREATE INDEX northdata_event_chunks_event_id_idx
+    ON northdata_event_chunks(event_id);
+
 CREATE INDEX chunk_embeddings_content_scope_idx
     ON chunk_embeddings(content_scope);
 
@@ -366,6 +439,14 @@ CREATE INDEX chunk_embeddings_pdf_chunk_id_idx
     ON chunk_embeddings(pdf_chunk_id)
     WHERE pdf_chunk_id IS NOT NULL;
 
+CREATE INDEX chunk_embeddings_northdata_publication_chunk_id_idx
+    ON chunk_embeddings(northdata_publication_chunk_id)
+    WHERE northdata_publication_chunk_id IS NOT NULL;
+
+CREATE INDEX chunk_embeddings_northdata_event_chunk_id_idx
+    ON chunk_embeddings(northdata_event_chunk_id)
+    WHERE northdata_event_chunk_id IS NOT NULL;
+
 CREATE UNIQUE INDEX chunk_embeddings_webpage_chunk_model_unique_idx
     ON chunk_embeddings(webpage_chunk_id, embedding_model)
     WHERE webpage_chunk_id IS NOT NULL;
@@ -373,6 +454,14 @@ CREATE UNIQUE INDEX chunk_embeddings_webpage_chunk_model_unique_idx
 CREATE UNIQUE INDEX chunk_embeddings_pdf_chunk_model_unique_idx
     ON chunk_embeddings(pdf_chunk_id, embedding_model)
     WHERE pdf_chunk_id IS NOT NULL;
+
+CREATE UNIQUE INDEX chunk_embeddings_northdata_publication_chunk_model_unique_idx
+    ON chunk_embeddings(northdata_publication_chunk_id, embedding_model)
+    WHERE northdata_publication_chunk_id IS NOT NULL;
+
+CREATE UNIQUE INDEX chunk_embeddings_northdata_event_chunk_model_unique_idx
+    ON chunk_embeddings(northdata_event_chunk_id, embedding_model)
+    WHERE northdata_event_chunk_id IS NOT NULL;
 
 CREATE INDEX chunk_embeddings_embedding_cosine_idx
     ON chunk_embeddings

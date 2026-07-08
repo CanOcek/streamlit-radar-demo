@@ -182,7 +182,7 @@ The demo supports:
 
 - exact metadata retrieval from `source_enrichments`;
 - enrichment vector retrieval over embedded LLM1 fields;
-- raw chunk vector retrieval over webpage/PDF chunks;
+- raw chunk vector retrieval over webpage/PDF/North Data chunks;
 - optional raw content hydration;
 - supplemental North Data retrieval outside the main LLM1 evidence path.
 
@@ -193,9 +193,8 @@ Vector queries assume pgvector-compatible Postgres and 3072-dimensional embeddin
 `LLM_stage2` turns retrieved LLM1 rows into grouped business-development findings. If no signals are available, it returns a neutral low-confidence empty result without calling OpenAI.
 
 The current Stage 2 implementation defaults to `gpt-5.4` and can be overridden
-with `OPENAI_MODEL`. Review `LLM_stage2/prompts2.py` before presenting the demo
-as fully generalized; the project context notes that some source-specific
-guardrail wording remains.
+with `OPENAI_MODEL`. Review `LLM_stage2/prompts2.py` before major production
+prompt changes.
 
 ## Known Caveats
 
@@ -206,9 +205,9 @@ guardrail wording remains.
 - The database must already be populated by `../busdevrad-collector`.
 - Vector search and LLM2 require OpenAI API access, including access to the
   configured Stage 2 model, which defaults to `gpt-5.4`.
-- Chunk retrieval covers webpage/PDF chunks, not North Data chunks.
+- North Data chunk retrieval requires the backend 20260708 SQL migration and
+  `embed-northdata-chunks` or `process-northdata` to have run.
 - Supplemental North Data context functions are intentionally resilient and may return empty results on errors.
-- Some prompt wording should be generalized before final production use.
 
 ## Development Guidance
 

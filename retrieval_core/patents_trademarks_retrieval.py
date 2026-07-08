@@ -1,8 +1,10 @@
 # New file: financial_retrieval.py
-from streamlit import logger
+import logging
 
 from .retrieval_models import FinancialContext, PatentEntry, PatentsContext, TrademarksContext, TrademarkEntry
 from shared.db import get_db_connection
+
+log = logging.getLogger(__name__)
 
 
 def retrieve_patent_context(companies: list[str]) -> PatentsContext:
@@ -25,6 +27,7 @@ def retrieve_patent_context(companies: list[str]) -> PatentsContext:
         finally:
             conn.close()
     except Exception:
+        log.exception("Failed to retrieve North Data patent context")
         return PatentsContext(patents=[])
 
 def retrieve_trademark_context(companies: list[str]) -> TrademarksContext:
@@ -47,4 +50,5 @@ def retrieve_trademark_context(companies: list[str]) -> TrademarksContext:
         finally:
             conn.close()
     except Exception:
+        log.exception("Failed to retrieve North Data trademark context")
         return TrademarksContext(trademarks=[])

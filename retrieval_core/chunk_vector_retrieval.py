@@ -31,6 +31,7 @@ def search_chunk_embeddings(
             a.source_type,
             CASE
                 WHEN ce.content_scope = 'webpage_chunk' THEN 'source'
+                WHEN ce.content_scope IN ('northdata_publication_chunk', 'northdata_event_chunk') THEN 'source'
                 WHEN ce.content_scope = 'pdf_chunk' THEN 'pdf_segment'
             END AS content_scope,
             CASE
@@ -47,13 +48,21 @@ def search_chunk_embeddings(
 
             ce.webpage_chunk_id,
             ce.pdf_chunk_id,
+            ce.northdata_publication_chunk_id,
+            ce.northdata_event_chunk_id,
             ce.chunk_index,
 
-            COALESCE(w.company, p.company) AS company,
-            COALESCE(w.page_type, 'pdf_segment') AS page_type,
-            COALESCE(w.title, ps.heading, p.title) AS title,
-            COALESCE(w.date, p.date) AS date,
-            COALESCE(w.raw_url, p.pdf_link) AS raw_url,
+            COALESCE(w.company, p.company, np.company_name, ne.company_name) AS company,
+            COALESCE(
+                w.page_type,
+                CASE WHEN p.id IS NOT NULL THEN 'pdf_segment' END,
+                NULLIF(np.source_name, ''),
+                NULLIF(ne.type, ''),
+                'northdata'
+            ) AS page_type,
+            COALESCE(w.title, ps.heading, p.title, np.title, NULLIF(ne.type, ''), 'North Data event') AS title,
+            COALESCE(w.date, p.date, np.date, ne.date) AS date,
+            COALESCE(w.raw_url, p.pdf_link, np.publication_url, ne.company_url) AS raw_url,
 
             se.id AS enrichment_id,
             sen.id AS noise_enrichment_id,
@@ -81,6 +90,8 @@ def search_chunk_embeddings(
                     'chunk_scope', ce.content_scope,
                     'webpage_chunk_id', ce.webpage_chunk_id,
                     'pdf_chunk_id', ce.pdf_chunk_id,
+                    'northdata_publication_chunk_id', ce.northdata_publication_chunk_id,
+                    'northdata_event_chunk_id', ce.northdata_event_chunk_id,
                     'chunk_index', ce.chunk_index,
                     'distance', ce.embedding::vector(3072) <=> %(query_embedding)s::vector(3072),
                     'similarity', 1 - (ce.embedding::vector(3072) <=> %(query_embedding)s::vector(3072))
@@ -96,7 +107,7 @@ def search_chunk_embeddings(
             END AS has_enrichment,
             CASE
                 WHEN a.source_type = 'webpages' THEN w.updated_at
-                ELSE COALESCE(ps.created_at, p.created_at, ce.created_at)
+                ELSE COALESCE(ps.created_at, p.created_at, np.created_at, ne.created_at, ce.created_at)
             END AS sort_timestamp
 
         FROM chunk_embeddings ce
@@ -116,9 +127,25 @@ def search_chunk_embeddings(
         LEFT JOIN pdfs p
             ON p.id = pc.pdf_id
 
+        LEFT JOIN northdata_publication_chunks npc
+            ON ce.content_scope = 'northdata_publication_chunk'
+            AND npc.id = ce.northdata_publication_chunk_id
+        LEFT JOIN northdata_publications np
+            ON np.id = npc.publication_id
+
+        LEFT JOIN northdata_event_chunks nec
+            ON ce.content_scope = 'northdata_event_chunk'
+            AND nec.id = ce.northdata_event_chunk_id
+        LEFT JOIN northdata_events ne
+            ON ne.id = nec.event_id
+
         LEFT JOIN source_enrichments se
             ON (
-                ce.content_scope = 'webpage_chunk'
+                ce.content_scope IN (
+                    'webpage_chunk',
+                    'northdata_publication_chunk',
+                    'northdata_event_chunk'
+                )
                 AND se.content_scope = 'source'
                 AND se.source_id = ce.source_id
             )
@@ -130,7 +157,11 @@ def search_chunk_embeddings(
 
         LEFT JOIN source_enrichments_noise sen
             ON (
-                ce.content_scope = 'webpage_chunk'
+                ce.content_scope IN (
+                    'webpage_chunk',
+                    'northdata_publication_chunk',
+                    'northdata_event_chunk'
+                )
                 AND sen.content_scope = 'source'
                 AND sen.source_id = ce.source_id
             )
@@ -147,9 +178,22 @@ def search_chunk_embeddings(
                 (a.source_type = 'webpages' AND w.id IS NOT NULL)
                 OR
                 (a.source_type = 'pdfs' AND ps.id IS NOT NULL AND p.id IS NOT NULL)
+                OR
+                (a.source_type = 'northdata_publications' AND np.id IS NOT NULL)
+                OR
+                (a.source_type = 'northdata_events' AND ne.id IS NOT NULL)
             )
-            AND (%(companies)s IS NULL OR COALESCE(w.company, p.company) = ANY(%(companies)s))
-            AND (%(page_type)s IS NULL OR COALESCE(w.page_type, 'pdf_segment') = ANY(%(page_type)s))
+            AND (%(companies)s IS NULL OR COALESCE(w.company, p.company, np.company_name, ne.company_name) = ANY(%(companies)s))
+            AND (
+                %(page_type)s IS NULL
+                OR COALESCE(
+                    w.page_type,
+                    CASE WHEN p.id IS NOT NULL THEN 'pdf_segment' END,
+                    NULLIF(np.source_name, ''),
+                    NULLIF(ne.type, ''),
+                    'northdata'
+                ) = ANY(%(page_type)s)
+            )
             AND (
                 NOT %(require_enrichment)s
                 OR (%(enrichment_mode)s = 'normal' AND se.id IS NOT NULL)
@@ -209,6 +253,8 @@ def search_chunk_embeddings(
         heading_path,
         webpage_chunk_id,
         pdf_chunk_id,
+        northdata_publication_chunk_id,
+        northdata_event_chunk_id,
         chunk_index,
         company,
         page_type,

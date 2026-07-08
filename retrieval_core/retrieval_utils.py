@@ -16,7 +16,12 @@ DEFAULT_SOURCE_TYPES = [
     "northdata_publications",
     "northdata_events",
 ]
-DEFAULT_CHUNK_SCOPES = ["webpage_chunk", "pdf_chunk"]
+DEFAULT_CHUNK_SCOPES = [
+    "webpage_chunk",
+    "pdf_chunk",
+    "northdata_publication_chunk",
+    "northdata_event_chunk",
+]
 
 
 def list_or_none(value: Any) -> list[Any] | None:
@@ -65,6 +70,10 @@ def print_results(results: list[dict[str, Any]], query: str | None = None) -> No
             print(f"webpage_chunk_id: {row.get('webpage_chunk_id')}")
         if row.get("pdf_chunk_id") is not None:
             print(f"pdf_chunk_id    : {row.get('pdf_chunk_id')}")
+        if row.get("northdata_publication_chunk_id") is not None:
+            print(f"nd_pub_chunk_id : {row.get('northdata_publication_chunk_id')}")
+        if row.get("northdata_event_chunk_id") is not None:
+            print(f"nd_event_chunk_id: {row.get('northdata_event_chunk_id')}")
         if row.get("chunk_index") is not None:
             print(f"chunk_index     : {row.get('chunk_index')}")
 

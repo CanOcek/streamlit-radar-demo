@@ -77,6 +77,8 @@ def _merge_matched_fields(
             field.get("field_name"),
             field.get("webpage_chunk_id"),
             field.get("pdf_chunk_id"),
+            field.get("northdata_publication_chunk_id"),
+            field.get("northdata_event_chunk_id"),
             field.get("content"),
         )
         existing = merged.get(key)
