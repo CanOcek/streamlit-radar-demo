@@ -71,6 +71,15 @@ CHUNK_SCOPE_OPTIONS = [
     "northdata_publication_chunk",
     "northdata_event_chunk",
 ]
+WORKSPACE_TABS = [
+    "Key Takeaways",
+    "Findings",
+    "Evidence",
+    "Company Structure",
+    "Financial Metrics",
+    "Patents & Trademarks",
+]
+WORKSPACE_TAB_KEY = "workspace_tab"
 
 FULL_COMPANY_NAMES = {
     "BMW": "Bayerische Motoren Werke AG",
@@ -255,6 +264,15 @@ def inject_dashboard_styles() -> None:
             border: 1px solid rgba(255,255,255,0.08);
             margin-bottom: 2px;
             color: rgba(255,255,255,0.9);
+            white-space: normal !important;
+            align-items: flex-start;
+        }
+
+        div[data-testid="stExpander"] > details > summary p {
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+            line-height: 1.35;
+            margin: 0;
         }
         
         div[data-testid="stExpander"] > details > summary:hover {
@@ -798,6 +816,7 @@ def retrieve_evidence(
     st.session_state["trademarks"] = trademark_context.trademarks
     st.session_state["retrieval_include_secondary_categories"] = filters.include_secondary_categories
     st.session_state.pop("stage2_result", None)
+    st.session_state[WORKSPACE_TAB_KEY] = "Evidence"
     limit_status = "Evidence limit reached." if len(retrieved_rows) >= options.limit else "Evidence limit not reached."
     token_limit_status = " Token limit reached." if token_budget.limit_reached else ""
     st.session_state["retrieval_status_message"] = (
@@ -819,6 +838,7 @@ def run_stage2_analysis(
             include_secondary=include_secondary,
         )
     st.session_state["stage2_result"] = result
+    st.session_state[WORKSPACE_TAB_KEY] = "Findings"
 
 
 def render_workspace(
@@ -847,44 +867,91 @@ def render_workspace(
     if not rows and result is None and not related_companies and not related_persons and not financials and not patents and not trademarks:
         return
 
-    tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials, tab_patents = st.tabs(
-        ["Key Takeaways", "Findings", "Evidence", "Company Structure", "Financial Metrics", "Patents & Trademarks"]
-    )
-
-    with tab_overview:
-        render_overview(
-            result=result,
-            scope_categories=scope_categories,
-            selected_directions=selected_directions,
-            financials=financials,
-            related_companies=related_companies,
-            related_persons=related_persons,
+    try:
+        tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials, tab_patents = st.tabs(
+            WORKSPACE_TABS,
+            key=WORKSPACE_TAB_KEY,
+            on_change="rerun",
         )
-
-    with tab_findings:
-        render_findings(
-            result,
-            evidence_rows=rows,
-            include_secondary_categories=include_secondary_categories,
+        lazy_tabs_supported = True
+    except TypeError:
+        tab_overview, tab_findings, tab_evidence, tab_company_info, tab_financials, tab_patents = st.tabs(
+            WORKSPACE_TABS
         )
+        lazy_tabs_supported = False
 
-    with tab_evidence:
-        render_evidence_rows(
-            rows,
-            include_secondary_categories=include_secondary_categories,
-            accepted_row_keys=accepted_row_keys,
-        )
+    if not lazy_tabs_supported:
+        with tab_overview:
+            render_overview(
+                result=result,
+                scope_categories=scope_categories,
+                selected_directions=selected_directions,
+                financials=financials,
+                related_companies=related_companies,
+                related_persons=related_persons,
+            )
+        with tab_findings:
+            render_findings(
+                result,
+                evidence_rows=rows,
+                include_secondary_categories=include_secondary_categories,
+            )
+        with tab_evidence:
+            render_evidence_rows(
+                rows,
+                include_secondary_categories=include_secondary_categories,
+                accepted_row_keys=accepted_row_keys,
+            )
+        with tab_company_info:
+            render_company_info(related_companies, related_persons)
+        with tab_financials:
+            render_financial_context_preview(financials)
+        with tab_patents:
+            render_patent_context(patents)
+            st.divider()
+            render_trademark_context(trademarks)
+        return
 
-    with tab_company_info:
-        render_company_info(related_companies, related_persons)
+    if tab_overview.open:
+        with tab_overview:
+            render_overview(
+                result=result,
+                scope_categories=scope_categories,
+                selected_directions=selected_directions,
+                financials=financials,
+                related_companies=related_companies,
+                related_persons=related_persons,
+            )
 
-    with tab_financials:
-        render_financial_context_preview(financials)
+    if tab_findings.open:
+        with tab_findings:
+            render_findings(
+                result,
+                evidence_rows=rows,
+                include_secondary_categories=include_secondary_categories,
+            )
 
-    with tab_patents:
-        render_patent_context(patents)
-        st.divider()
-        render_trademark_context(trademarks)
+    if tab_evidence.open:
+        with tab_evidence:
+            render_evidence_rows(
+                rows,
+                include_secondary_categories=include_secondary_categories,
+                accepted_row_keys=accepted_row_keys,
+            )
+
+    if tab_company_info.open:
+        with tab_company_info:
+            render_company_info(related_companies, related_persons)
+
+    if tab_financials.open:
+        with tab_financials:
+            render_financial_context_preview(financials)
+
+    if tab_patents.open:
+        with tab_patents:
+            render_patent_context(patents)
+            st.divider()
+            render_trademark_context(trademarks)
 
 
 
@@ -1939,9 +2006,8 @@ def render_grouped_finding_cards(
         conf_color = confidence_color(confidence)
         cats_text = ", ".join(categories) if categories else "-"
 
-        short_title = title if len(title) <= 72 else title[:70] + "…"
         dir_icon = {"opportunity": "↗", "risk": "⚠", "neutral": "–"}.get(direction.lower(), "")
-        with st.expander(f"{fid}  {dir_icon}  {short_title}", expanded=False):
+        with st.expander(f"{fid}  {dir_icon}  {title}", expanded=False):
             st.markdown(
                 f'<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">'
                 f'<span style="background:{dir_color}; color:white; padding:3px 10px; border-radius:10px; font-size:0.78rem; font-weight:600;">{direction_label}</span>'
@@ -2024,21 +2090,15 @@ def render_finding_supporting_evidence(
             if support["signal_id"] not in evidence_lookup
         ]
 
-        label = f"Supporting evidence ({len(found_items)}/{len(supporting_signals)} linked)"
-        if hasattr(st, "popover"):
-            with st.popover(label):
-                render_supporting_evidence_body(
-                    found_items=found_items,
-                    missing_items=missing_items,
-                    include_secondary_categories=include_secondary_categories,
-                )
-        else:
-            with st.expander(label):
-                render_supporting_evidence_body(
-                    found_items=found_items,
-                    missing_items=missing_items,
-                    include_secondary_categories=include_secondary_categories,
-                )
+        with st.expander(f"Supporting signals ({len(supporting_signals)})"):
+            st.caption(
+                f"{len(found_items)} of {len(supporting_signals)} cited signal(s) linked to retrieved evidence."
+            )
+            render_supporting_evidence_body(
+                found_items=found_items,
+                missing_items=missing_items,
+                include_secondary_categories=include_secondary_categories,
+            )
         return
 
     if legacy_titles:
