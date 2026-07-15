@@ -28,6 +28,8 @@ Important:
 - Use the provided scope exactly.
 - If the scope includes multiple categories, identify category-specific and cross-category patterns.
 - If the scope includes multiple companies, identify shared patterns and company-specific differences.
+- Every signal has a stable Evidence ID such as E1, E2, or E3.
+- Cite supporting evidence by Evidence ID. Do not rely on titles alone because titles may be duplicated.
 - Return JSON only in the exact structure requested.
 
 SIGNAL QUALITY GUARDRAIL:
@@ -176,6 +178,13 @@ Return JSON in exactly this format:
       "why_it_matters_for_pntn": "",
       "direction": "opportunity | risk | neutral",
       "confidence": "low | medium | high",
+      "supporting_signals": [
+        {{
+          "signal_id": "E1",
+          "title": "",
+          "reason_used": ""
+        }}
+      ],
       "supporting_signal_titles": []
     }}
   ],
@@ -218,5 +227,9 @@ Output guidance:
 - top_risks must come only from grouped findings with direction = risk
 - do not duplicate the same finding across top_opportunities and emerging_opportunities
 - return at most 3 top_opportunities, 3 emerging_opportunities, and 3 top_risks
-- supporting_signal_titles should contain the most relevant signal titles behind each grouped finding
+- supporting_signals must contain the most relevant Evidence IDs behind each grouped finding
+- every grouped finding must cite at least one supporting_signals item
+- use only Evidence IDs that appear in PROCESSED SIGNALS
+- each supporting_signals item must include the exact signal_id, the signal title, and a brief reason_used
+- supporting_signal_titles is kept for compatibility and should contain the same supporting signal titles
 """

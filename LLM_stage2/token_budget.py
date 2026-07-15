@@ -6,7 +6,7 @@ try:
 except ImportError:
     tiktoken = None
 
-from .db_signal_adapter import retrieval_rows_to_stage1_signals
+from .db_signal_adapter import retrieval_rows_to_stage1_signals, with_stage2_evidence_ids
 from .formatter import format_signals_for_stage2
 from .prompts2 import STAGE2_SYSTEM_PROMPT, build_stage2_user_prompt
 from .stage2_runner import get_stage2_model, infer_mode
@@ -39,7 +39,9 @@ def limit_rows_by_stage2_tokens(
         _with_stage2_token_key(row, idx)
         for idx, row in enumerate(rows)
     ]
-    body_rows = [row for row in keyed_rows if row_has_stage2_body(row)]
+    body_rows = with_stage2_evidence_ids(
+        [row for row in keyed_rows if row_has_stage2_body(row)]
+    )
     signals = retrieval_rows_to_stage1_signals(body_rows)
     if not signals or token_limit <= 0:
         return Stage2TokenBudget([], [], 0, bool(signals), set())

@@ -13,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from retrieval_core import RetrievalFilters, RetrievalOptions, retrieve_for_llm2  # noqa: E402
 from shared.settings import get_setting  # noqa: E402
 
-from .db_signal_adapter import retrieval_rows_to_stage1_signals
+from .db_signal_adapter import retrieval_rows_to_stage1_signals, with_stage2_evidence_ids
 from .formatter import format_signals_for_stage2
 from .prompts2 import STAGE2_SYSTEM_PROMPT, build_stage2_user_prompt
 from .schemas import Stage1Signal
@@ -51,6 +51,7 @@ def run_stage2_from_retrieval(
         vector_queries=vector_queries,
         options=options,
     )
+    rows = with_stage2_evidence_ids(rows)
     signals = retrieval_rows_to_stage1_signals(rows)
     result = run_stage2_from_signals(
         signals=signals,

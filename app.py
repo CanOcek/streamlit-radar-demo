@@ -862,7 +862,11 @@ def render_workspace(
         )
 
     with tab_findings:
-        render_findings(result)
+        render_findings(
+            result,
+            evidence_rows=rows,
+            include_secondary_categories=include_secondary_categories,
+        )
 
     with tab_evidence:
         render_evidence_rows(
@@ -1602,7 +1606,11 @@ def render_priority_expanders(result: dict[str, Any]) -> None:
 
 
 
-def render_findings(result: dict[str, Any] | None) -> None:
+def render_findings(
+    result: dict[str, Any] | None,
+    evidence_rows: list[dict[str, Any]] | None = None,
+    include_secondary_categories: bool = True,
+) -> None:
     if not result:
         st.info("Run LLM2 synthesis to see grouped findings.")
         return
@@ -1611,7 +1619,11 @@ def render_findings(result: dict[str, Any] | None) -> None:
         "Important Findings from Signals",
         "Grouped company developments synthesized from the underlying evidence signals."
     )
-    render_grouped_finding_cards(result.get("grouped_findings", []))
+    render_grouped_finding_cards(
+        result.get("grouped_findings", []),
+        evidence_rows=evidence_rows or [],
+        include_secondary_categories=include_secondary_categories,
+    )
 
     st.markdown("")
 
@@ -1645,77 +1657,102 @@ def render_evidence_rows(
     display_rows = paginated_evidence_rows(rows)
 
     for row in display_rows:
-        title = row.get("title") or row.get("heading") or "Untitled"
-        secondary_categories = row.get("secondary_categories") or []
-
-        # raw values for color logic
-        bucket_raw = (row.get("bucket") or "-").strip().lower()
-        direction_raw = (row.get("direction") or "-").strip().lower()
-        confidence_raw = (row.get("confidence") or "-").strip().lower()
-
-        # display labels
-        bucket_label = bucket_raw.capitalize() if bucket_raw != "-" else "-"
-        direction_label = direction_raw.capitalize() if direction_raw != "-" else "-"
-        confidence_text = confidence_label(confidence_raw)
-        similarity_text = format_similarity_score(row.get("best_similarity"))
-        best_matching_field = matched_with(row)
+        render_evidence_row_expander(
+            row,
+            include_secondary_categories=include_secondary_categories,
+        )
 
 
-        direction_hint = f"  ·  {direction_raw.capitalize()}" if direction_raw and direction_raw != "-" else ""
-        confidence_hint = f"  ·  {confidence_raw.capitalize()} confidence" if confidence_raw and confidence_raw != "-" else ""
-        with st.expander(f"{row.get('company') or '-'}  —  {title}{direction_hint}{confidence_hint}"):
-            if similarity_text:
-                meta1, meta2, meta3, meta4, _ = st.columns([1, 1, 1.4, 1.4, 2.2])
-            else:
-                meta1, meta2, meta3, _ = st.columns([1, 1, 1.4, 3])
+def render_evidence_row_expander(
+    row: dict[str, Any],
+    include_secondary_categories: bool = True,
+) -> None:
+    title = row.get("title") or row.get("heading") or "Untitled"
+    direction_raw = (row.get("direction") or "-").strip().lower()
+    confidence_raw = (row.get("confidence") or "-").strip().lower()
+    direction_hint = f"  ·  {direction_raw.capitalize()}" if direction_raw and direction_raw != "-" else ""
+    confidence_hint = f"  ·  {confidence_raw.capitalize()} confidence" if confidence_raw and confidence_raw != "-" else ""
+    evidence_id = row.get("_stage2_evidence_id")
+    evidence_prefix = f"{evidence_id}  ·  " if evidence_id else ""
 
-            with meta1:
-                badge(bucket_label, bucket_color(bucket_raw))
+    with st.expander(f"{evidence_prefix}{row.get('company') or '-'}  —  {title}{direction_hint}{confidence_hint}"):
+        render_evidence_row_details(
+            row,
+            include_secondary_categories=include_secondary_categories,
+        )
 
-            with meta2:
-                badge(direction_label, direction_color(direction_raw))
 
-            with meta3:
-                badge(confidence_text, confidence_color(confidence_raw))
+def render_evidence_row_details(
+    row: dict[str, Any],
+    include_secondary_categories: bool = True,
+) -> None:
+    secondary_categories = row.get("secondary_categories") or []
 
-            if similarity_text:
-                with meta4:
-                    badge(f"Similarity: {similarity_text}", "#64748b")
+    bucket_raw = (row.get("bucket") or "-").strip().lower()
+    direction_raw = (row.get("direction") or "-").strip().lower()
+    confidence_raw = (row.get("confidence") or "-").strip().lower()
 
-            cat_col1, cat_col2 = st.columns(2)
+    bucket_label = bucket_raw.capitalize() if bucket_raw != "-" else "-"
+    direction_label = direction_raw.capitalize() if direction_raw != "-" else "-"
+    confidence_text = confidence_label(confidence_raw)
+    similarity_text = format_similarity_score(row.get("best_similarity"))
+    best_matching_field = matched_with(row)
 
-            with cat_col1:
-                st.markdown("**Primary category**")
-                st.write(row.get("category") or "-")
+    if similarity_text:
+        meta1, meta2, meta3, meta4, _ = st.columns([1, 1, 1.4, 1.4, 2.2])
+    else:
+        meta1, meta2, meta3, _ = st.columns([1, 1, 1.4, 3])
 
-            with cat_col2:
-                st.markdown("**Secondary categories**")
-                if include_secondary_categories and secondary_categories:
-                    st.write(", ".join(secondary_categories))
-                else:
-                    st.write("-")
+    with meta1:
+        badge(bucket_label, bucket_color(bucket_raw))
 
-            st.markdown(f"**Date:** {row.get('date') or '-'}")
-            st.markdown(f"**Source:** {row.get('raw_url') or '-'}")
+    with meta2:
+        badge(direction_label, direction_color(direction_raw))
 
-            id_parts = [
-                f"source_id={row.get('source_id') or '-'}",
-                f"enrichment_id={row.get('enrichment_id') or '-'}",
-            ]
-            if row.get("pdf_segment_id") is not None:
-                id_parts.append(f"pdf_segment_id={row.get('pdf_segment_id')}")
-            if best_matching_field:
-                id_parts.append(f"best_matching_field={best_matching_field}")
-            if similarity_text:
-                id_parts.append(f"similarity_score={similarity_text}")
+    with meta3:
+        badge(confidence_text, confidence_color(confidence_raw))
 
-            st.caption(" | ".join(id_parts))
+    if similarity_text:
+        with meta4:
+            badge(f"Similarity: {similarity_text}", "#64748b")
 
-            _write_text_block("Short summary", row.get("short_summary"))
-            _write_text_block("Evidence", row.get("evidence"))
-            _write_text_block("Why it matters for PNTN", row.get("why_it_matters_for_pntn"))
-            _write_text_block("Possible business suggestion", row.get("possible_business_suggestion"))
-            _write_text_block("Full raw content", row.get("raw_content"))
+    cat_col1, cat_col2 = st.columns(2)
+
+    with cat_col1:
+        st.markdown("**Primary category**")
+        st.write(row.get("category") or "-")
+
+    with cat_col2:
+        st.markdown("**Secondary categories**")
+        if include_secondary_categories and secondary_categories:
+            st.write(", ".join(secondary_categories))
+        else:
+            st.write("-")
+
+    st.markdown(f"**Date:** {row.get('date') or '-'}")
+    st.markdown(f"**Source:** {row.get('raw_url') or '-'}")
+
+    id_parts = []
+    if row.get("_stage2_evidence_id"):
+        id_parts.append(f"evidence_id={row.get('_stage2_evidence_id')}")
+    id_parts.extend([
+        f"source_id={row.get('source_id') or '-'}",
+        f"enrichment_id={row.get('enrichment_id') or '-'}",
+    ])
+    if row.get("pdf_segment_id") is not None:
+        id_parts.append(f"pdf_segment_id={row.get('pdf_segment_id')}")
+    if best_matching_field:
+        id_parts.append(f"best_matching_field={best_matching_field}")
+    if similarity_text:
+        id_parts.append(f"similarity_score={similarity_text}")
+
+    st.caption(" | ".join(id_parts))
+
+    _write_text_block("Short summary", row.get("short_summary"))
+    _write_text_block("Evidence", row.get("evidence"))
+    _write_text_block("Why it matters for PNTN", row.get("why_it_matters_for_pntn"))
+    _write_text_block("Possible business suggestion", row.get("possible_business_suggestion"))
+    _write_text_block("Full raw content", row.get("raw_content"))
 
 
 def paginated_evidence_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1876,11 +1913,16 @@ def _readable_column_name(name: str) -> str:
     readable = name.replace("_", " ")
     return readable[:1].upper() + readable[1:]
 
-# REPLACE lines 1536–1579
-def render_grouped_finding_cards(findings: list[dict[str, Any]]) -> None:
+def render_grouped_finding_cards(
+    findings: list[dict[str, Any]],
+    evidence_rows: list[dict[str, Any]] | None = None,
+    include_secondary_categories: bool = True,
+) -> None:
     if not findings:
         st.caption("No grouped findings available.")
         return
+
+    evidence_lookup = build_evidence_id_lookup(evidence_rows or [])
 
     for finding in findings:
         title = finding.get("title", "Untitled")
@@ -1888,25 +1930,14 @@ def render_grouped_finding_cards(findings: list[dict[str, Any]]) -> None:
         direction = finding.get("direction", "")
         confidence = finding.get("confidence", "")
         categories = finding.get("categories", [])
-        titles = finding.get("supporting_signal_titles", [])
+        supporting_signals = normalize_supporting_signals(finding.get("supporting_signals"))
+        legacy_titles = normalize_legacy_titles(finding.get("supporting_signal_titles"))
 
         direction_label = direction.capitalize() if direction else "-"
         confidence_label_text = f"{confidence.capitalize()} confidence" if confidence else "-"
         dir_color = direction_color(direction)
         conf_color = confidence_color(confidence)
         cats_text = ", ".join(categories) if categories else "-"
-
-        header_html = f"""
-        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; pointer-events:none;">
-            <span style="font-weight:700; font-size:0.97rem; color:rgba(255,255,255,0.95);">
-                {fid} · {title}
-            </span>
-            <span style="background:{dir_color}; color:white; padding:2px 9px; border-radius:10px; font-size:0.75rem; font-weight:600;">{direction_label}</span>
-            <span style="background:{conf_color}; color:white; padding:2px 9px; border-radius:10px; font-size:0.75rem; font-weight:600;">{confidence_label_text}</span>
-            <span style="color:rgba(255,255,255,0.48); font-size:0.8rem;">{cats_text}</span>
-        </div>
-        """
-
 
         short_title = title if len(title) <= 72 else title[:70] + "…"
         dir_icon = {"opportunity": "↗", "risk": "⚠", "neutral": "–"}.get(direction.lower(), "")
@@ -1926,10 +1957,121 @@ def render_grouped_finding_cards(findings: list[dict[str, Any]]) -> None:
             st.markdown('<div class="finding-card-block-title">Business development relevance</div>', unsafe_allow_html=True)
             st.write(finding.get("why_it_matters_for_pntn", ""))
 
-            if titles:
-                with st.expander(f"Supporting signals ({len(titles)})"):
-                    for signal_title in titles:
-                        st.markdown(f"- {signal_title}")
+            render_finding_supporting_evidence(
+                supporting_signals=supporting_signals,
+                legacy_titles=legacy_titles,
+                evidence_lookup=evidence_lookup,
+                include_secondary_categories=include_secondary_categories,
+            )
+
+
+def build_evidence_id_lookup(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    lookup = {}
+    for row in rows:
+        evidence_id = row.get("_stage2_evidence_id") or row.get("evidence_id")
+        if evidence_id:
+            lookup[str(evidence_id)] = row
+    return lookup
+
+
+def normalize_supporting_signals(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+
+    normalized = []
+    for item in value:
+        if isinstance(item, dict):
+            signal_id = str(item.get("signal_id") or item.get("evidence_id") or "").strip()
+            if not signal_id:
+                continue
+            normalized.append(
+                {
+                    "signal_id": signal_id,
+                    "title": str(item.get("title") or "").strip(),
+                    "reason_used": str(item.get("reason_used") or "").strip(),
+                }
+            )
+        elif isinstance(item, str):
+            signal_id = item.strip()
+            if signal_id:
+                normalized.append({"signal_id": signal_id, "title": "", "reason_used": ""})
+    return normalized
+
+
+def normalize_legacy_titles(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
+
+
+def render_finding_supporting_evidence(
+    supporting_signals: list[dict[str, str]],
+    legacy_titles: list[str],
+    evidence_lookup: dict[str, dict[str, Any]],
+    include_secondary_categories: bool,
+) -> None:
+    if supporting_signals:
+        found_items = [
+            (support, evidence_lookup[support["signal_id"]])
+            for support in supporting_signals
+            if support["signal_id"] in evidence_lookup
+        ]
+        missing_items = [
+            support
+            for support in supporting_signals
+            if support["signal_id"] not in evidence_lookup
+        ]
+
+        label = f"Supporting evidence ({len(found_items)}/{len(supporting_signals)} linked)"
+        if hasattr(st, "popover"):
+            with st.popover(label):
+                render_supporting_evidence_body(
+                    found_items=found_items,
+                    missing_items=missing_items,
+                    include_secondary_categories=include_secondary_categories,
+                )
+        else:
+            with st.expander(label):
+                render_supporting_evidence_body(
+                    found_items=found_items,
+                    missing_items=missing_items,
+                    include_secondary_categories=include_secondary_categories,
+                )
+        return
+
+    if legacy_titles:
+        with st.expander(f"Supporting signal titles ({len(legacy_titles)})"):
+            st.caption(
+                "This older synthesis result only contains titles, so evidence rows cannot be linked safely."
+            )
+            for signal_title in legacy_titles:
+                st.markdown(f"- {signal_title}")
+
+
+def render_supporting_evidence_body(
+    found_items: list[tuple[dict[str, str], dict[str, Any]]],
+    missing_items: list[dict[str, str]],
+    include_secondary_categories: bool,
+) -> None:
+    if found_items:
+        for support, row in found_items:
+            reason_used = support.get("reason_used")
+            if reason_used:
+                st.caption(f"{support['signal_id']} used because: {reason_used}")
+            render_evidence_row_expander(
+                row,
+                include_secondary_categories=include_secondary_categories,
+            )
+
+    if missing_items:
+        st.warning(
+            "Some cited evidence IDs were not found in the accepted LLM2 evidence rows."
+        )
+        for support in missing_items:
+            title = f" - {support['title']}" if support.get("title") else ""
+            st.caption(f"{support['signal_id']}{title}")
 
 
 def render_grouped_findings(findings: list[dict[str, Any]]) -> None:

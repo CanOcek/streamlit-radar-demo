@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 
 @dataclass
 class Stage1Signal:
+    evidence_id: str
     company: str
     title: str
     date: str
@@ -42,7 +43,15 @@ class GroupedFinding:
     why_it_matters_for_pntn: str
     direction: str
     confidence: str
-    supporting_signal_titles: List[str]
+    supporting_signal_titles: List[str] = field(default_factory=list)
+    supporting_signals: List["SupportingSignal"] = field(default_factory=list)
+
+
+@dataclass
+class SupportingSignal:
+    signal_id: str
+    title: str
+    reason_used: str
 
 
 @dataclass

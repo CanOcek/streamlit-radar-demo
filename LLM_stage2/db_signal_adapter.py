@@ -8,6 +8,15 @@ def retrieval_rows_to_stage1_signals(rows: list[dict[str, Any]]) -> list[Stage1S
     return [retrieval_row_to_stage1_signal(row) for row in rows]
 
 
+def with_stage2_evidence_ids(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    annotated = []
+    for idx, row in enumerate(rows, start=1):
+        item = dict(row)
+        item["_stage2_evidence_id"] = item.get("_stage2_evidence_id") or f"E{idx}"
+        annotated.append(item)
+    return annotated
+
+
 def retrieval_row_to_stage1_signal(row: dict[str, Any]) -> Stage1Signal:
     title = row.get("title") or row.get("heading") or ""
     category = html.unescape(row.get("category") or "")
@@ -17,6 +26,7 @@ def retrieval_row_to_stage1_signal(row: dict[str, Any]) -> Stage1Signal:
     ]
 
     return Stage1Signal(
+        evidence_id=row.get("_stage2_evidence_id") or row.get("evidence_id") or "",
         company=row.get("company") or "",
         title=title,
         date=row.get("date") or "",
