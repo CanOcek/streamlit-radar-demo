@@ -38,6 +38,10 @@ from retrieval_core import (  # noqa: E402
 from retrieval_core.retrieval_utils import get_db_connection  # noqa: E402
 from shared.settings import get_setting  # noqa: E402
 from ui_presets import PRESET_CATEGORIES, PRESET_COMPANIES  # noqa: E402
+from public_demo_presets import get_public_demo_presets  # noqa: E402
+from public_demo_cache import (  # noqa: E402
+    cached_public_demo_payload,
+)
 
 
 DEFAULT_CATEGORY_OPTIONS = [
@@ -152,6 +156,18 @@ def inject_dashboard_styles() -> None:
             line-height: 1.5;
             margin-top: 4px;
             margin-bottom: 8px;
+        }
+
+        div[data-testid="stSelectbox"],
+        div[data-testid="stSelectbox"] *,
+        div[data-baseweb="select"],
+        div[data-baseweb="select"] * {
+            cursor: pointer !important;
+        }
+
+        div[data-testid="stSelectbox"] input,
+        div[data-baseweb="select"] input {
+            caret-color: transparent !important;
         }
         
         .insight-card {
@@ -392,6 +408,7 @@ def render_sidebar_branding() -> None:
 def main() -> None:
     if not require_password():
         return
+    st.session_state.pop("public_demo_active", None)
     inject_button_styles()
     inject_dashboard_styles()
     st.markdown(
@@ -577,30 +594,270 @@ def main() -> None:
     )
 
 
-def require_password() -> bool:
+def render_public_demo_app() -> None:
+    st.session_state["public_demo_active"] = True
+    inject_button_styles()
+    inject_dashboard_styles()
+    st.markdown(
+        """
+        <div style="margin-bottom: 14px;">
+            <div style="
+                font-size: 2.25rem;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+                line-height: 1.1;
+                color: rgba(255,255,255,0.98);
+                margin-bottom: 8px;
+            ">
+                Business Development Radar
+            </div>
+            <div style="
+                font-size: 1.02rem;
+                color: rgba(255,255,255,0.62);
+                line-height: 1.5;
+                max-width: 950px;
+            ">
+                A business development radar for spotting relevant signals, opportunity areas, and risks across public company data.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    presets = get_public_demo_presets()
+    selected_preset = presets[0]
+
+    with st.sidebar:
+        render_sidebar_branding()
+        selected_preset = render_public_demo_selector(presets)
+
+        st.divider()
+
+        st.markdown('<div class="sidebar-section-label">Scope</div>', unsafe_allow_html=True)
+        scope_companies, scope_categories = render_scope_controls(
+            db_options={},
+            default_companies=selected_preset["companies"],
+            default_categories=selected_preset["categories"],
+            disabled=True,
+        )
+
+        st.divider()
+
+        st.markdown('<div class="sidebar-section-label">Filters</div>', unsafe_allow_html=True)
+        preset_filters = selected_preset["filters"]
+        filters = render_filter_controls(
+            db_options={},
+            scope_companies=scope_companies,
+            scope_categories=scope_categories,
+            default_signal_strengths=preset_filters.get("signal_strength"),
+            default_directions=preset_filters.get("direction"),
+            default_confidences=preset_filters.get("confidence"),
+            default_include_secondary=bool(preset_filters.get("include_secondary_categories", True)),
+            disabled=True,
+        )
+
+        include_raw_content = st.toggle(
+            "Include full raw text content",
+            value=bool(selected_preset["retrieval"].get("include_raw_content", False)),
+            disabled=True,
+        )
+
+        st.divider()
+
+        st.markdown('<div class="sidebar-section-label">Retrieval</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-hint">Choose how evidence is fetched from the database.</div>',
+                    unsafe_allow_html=True)
+        retrieval_settings = selected_preset["retrieval"]
+        strategy = render_strategy_control(
+            default_strategy=retrieval_settings.get("strategy", "Exact metadata fetch"),
+            disabled=True,
+        )
+
+        st.slider(
+            "Evidence limit",
+            min_value=1,
+            max_value=500,
+            value=int(retrieval_settings.get("evidence_limit", 50)),
+            step=1,
+            disabled=True,
+            help="Maximum count of evidence sent to LLM2 synthesis.",
+        )
+
+        token_limit = st.slider(
+            "Token limit",
+            min_value=1_000,
+            max_value=300_000,
+            value=int(retrieval_settings.get("token_limit", 50_000)),
+            step=1_000,
+            disabled=True,
+            help="Maximum tokens of the full LLM2 input prompt.",
+        )
+
+        st.slider(
+            "Min. vector similarity",
+            min_value=0.0,
+            max_value=1.0,
+            value=float(retrieval_settings.get("min_vector_similarity", 0.25)),
+            step=0.01,
+            disabled=True,
+            help="Minimum vector similarity to the query for evidence to be accepted.",
+        )
+
+    render_vector_controls(
+        strategy,
+        default_specs=selected_preset["retrieval"].get("vector_queries") or [],
+        disabled=True,
+    )
+
+    if include_raw_content:
+        st.caption("Raw content is included in this preset.")
+
+    demo_payload = public_demo_payload(selected_preset=selected_preset)
+    rows = demo_payload["rows"]
+    signals = demo_payload["signals"]
+    accepted_row_keys = demo_payload["accepted_row_keys"]
+    result = demo_payload["result"]
+
+    st.session_state["retrieval_rows"] = rows
+    st.session_state["stage1_signals"] = signals
+    st.session_state["stage2_token_accepted_row_keys"] = accepted_row_keys
+    st.session_state["stage2_result"] = result
+    st.session_state["retrieval_include_secondary_categories"] = filters.include_secondary_categories
+    st.session_state["related_companies"] = []
+    st.session_state["related_persons"] = []
+    st.session_state["financials"] = []
+    st.session_state["patents"] = []
+    st.session_state["trademarks"] = []
+
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    btn_col1, btn_col2, _ = st.columns([0.78, 0.78, 4.44], gap="small")
+    with btn_col1:
+        st.button(
+            "① Evidence",
+            type="primary",
+            use_container_width=False,
+            disabled=True,
+            help="Public presets use pre-generated evidence.",
+        )
+    with btn_col2:
+        st.button(
+            "② Synthesis",
+            type="primary",
+            use_container_width=False,
+            disabled=True,
+            help="Public presets use pre-generated synthesis.",
+        )
+
+    st.markdown(
+        '<div style="font-size:0.8rem; color:rgba(255,255,255,0.35); margin-top:4px; margin-bottom:2px;">'
+        f'Showing public demo output with {len(rows)} accepted evidence row(s). '
+        'This preset uses saved LLM2 synthesis and its saved ordered evidence set.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    if demo_payload.get("error"):
+        st.warning(demo_payload["error"])
+
+    render_workspace(
+        rows=rows,
+        signals=signals,
+        result=result,
+        scope_companies=scope_companies,
+        scope_categories=scope_categories,
+        selected_directions=filters.direction or [],
+    )
+
+
+def render_public_demo_selector(presets: list[dict[str, Any]]) -> dict[str, Any]:
+    st.markdown('<div class="sidebar-section-label">Public demo preset</div>', unsafe_allow_html=True)
+    preset_ids = [preset["id"] for preset in presets]
+    current_id = st.session_state.get("public_demo_preset_id") or preset_ids[0]
+    if current_id not in preset_ids:
+        current_id = preset_ids[0]
+
+    selected_id = st.selectbox(
+        "Preset",
+        preset_ids,
+        index=preset_ids.index(current_id),
+        format_func=lambda preset_id: public_preset_label(presets, preset_id),
+        key="public_demo_preset_id",
+    )
+
+    if st.button("Sign in to full app", use_container_width=True):
+        render_login_dialog()
+
+    if st.session_state.get("last_public_demo_preset_id") != selected_id:
+        st.session_state["last_public_demo_preset_id"] = selected_id
+        st.session_state["evidence_page_number"] = 1
+        st.session_state[WORKSPACE_TAB_KEY] = "Key Takeaways"
+
+    selected_preset = public_preset_by_id(presets, selected_id)
+    return selected_preset or presets[0]
+
+
+def public_preset_label(presets: list[dict[str, Any]], preset_id: str) -> str:
+    preset = public_preset_by_id(presets, preset_id)
+    return preset["label"] if preset else preset_id
+
+
+def public_preset_by_id(
+    presets: list[dict[str, Any]],
+    preset_id: str,
+) -> dict[str, Any] | None:
+    for preset in presets:
+        if preset["id"] == preset_id:
+            return preset
+    return None
+
+
+def public_demo_payload(selected_preset: dict[str, Any]) -> dict[str, Any]:
+    cache = st.session_state.setdefault("public_demo_retrieval_cache", {})
+    cache_key = selected_preset["id"]
+    if cache_key not in cache:
+        cache[cache_key] = cached_public_demo_payload(selected_preset)
+    return cache[cache_key]
+
+
+@st.dialog("Sign in to full app")
+def render_login_dialog() -> None:
     app_password = get_setting("APP_PASSWORD")
     if not app_password:
         st.error("APP_PASSWORD is not configured for this app.")
-        st.stop()
+        return
 
-    if st.session_state.get("authenticated"):
-        return True
-
-    with st.form("login"):
-        st.subheader("Business Development Radar")
+    with st.form("login_dialog"):
         password = st.text_input("Password", type="password")
         submitted = st.form_submit_button("Enter")
 
     if submitted:
         if password == app_password:
             st.session_state["authenticated"] = True
+            st.session_state.pop("public_demo_preset_id", None)
+            st.session_state.pop("last_public_demo_preset_id", None)
             st.rerun()
         st.error("Incorrect password.")
 
+
+def require_password() -> bool:
+    app_password = get_setting("APP_PASSWORD")
+    if not app_password:
+        render_public_demo_app()
+        return False
+
+    if st.session_state.get("authenticated"):
+        return True
+
+    render_public_demo_app()
     return False
 
 
-def render_scope_controls(db_options: dict[str, list[str]]) -> tuple[list[str], list[str]]:
+def render_scope_controls(
+    db_options: dict[str, list[str]],
+    default_companies: list[str] | None = None,
+    default_categories: list[str] | None = None,
+    disabled: bool = False,
+) -> tuple[list[str], list[str]]:
     company_options = preset_or_database_options(
         preset_values=PRESET_COMPANIES,
         database_values=db_options.get("companies") or [],
@@ -609,15 +866,21 @@ def render_scope_controls(db_options: dict[str, list[str]]) -> tuple[list[str], 
         preset_values=PRESET_CATEGORIES,
         database_values=all_category_options(db_options),
     )
+    company_options = unique_nonempty_values((default_companies or []) + company_options)
+    category_options = unique_nonempty_values((default_categories or []) + category_options)
     companies = st.multiselect(
         "Companies",
         company_options,
+        default=default_companies or [],
         placeholder="Leave empty to use all visible companies",
+        disabled=disabled,
     )
     categories = st.multiselect(
         "Categories",
         category_options,
+        default=default_categories or [],
         placeholder="Leave empty to use all visible categories",
+        disabled=disabled,
     )
     return companies or [], categories
 
@@ -665,19 +928,26 @@ def unique_nonempty_values(values: list[str]) -> list[str]:
     return cleaned
 
 
-def render_strategy_control() -> str:
+def render_strategy_control(
+    default_strategy: str = "Exact metadata fetch",
+    disabled: bool = False,
+) -> str:
+    options = [
+        "Exact metadata fetch",
+        "Single vector query",
+        "Multi-query vector search",
+    ]
+    index = options.index(default_strategy) if default_strategy in options else 0
     return st.radio(
         "Strategy",
-        [
-            "Exact metadata fetch",
-            "Single vector query",
-            "Multi-query vector search",
-        ],
+        options,
+        index=index,
         format_func=lambda x: {
             "Exact metadata fetch": "Standard (all matching signals)",
             "Single vector query": "Similarity search (1 query)",
             "Multi-query vector search": "Similarity search (multiple queries)",
         }.get(x, x),
+        disabled=disabled,
         help=(
             "Standard returns all matching signals without ranking.\n\n"
             "Similarity search ranks results by relevance to your search query."
@@ -688,28 +958,37 @@ def render_filter_controls(
     db_options: dict[str, list[str]],
     scope_companies: list[str],
     scope_categories: list[str],
+    default_signal_strengths: list[str] | None = None,
+    default_directions: list[str] | None = None,
+    default_confidences: list[str] | None = None,
+    default_include_secondary: bool = True,
+    disabled: bool = False,
 ) -> RetrievalFilters:
     signal_strengths = st.multiselect(
         "Signal strength",
         SIGNAL_STRENGTH_OPTIONS,
-        default=["strong", "medium"],
+        default=default_signal_strengths if default_signal_strengths is not None else ["strong", "medium"],
+        disabled=disabled,
     )
 
     directions = st.multiselect(
         "Direction",
         DIRECTION_OPTIONS,
-        default=[],
+        default=default_directions or [],
+        disabled=disabled,
     )
 
     confidences = st.multiselect(
         "Confidence",
         CONFIDENCE_OPTIONS,
-        default=[],
+        default=default_confidences or [],
+        disabled=disabled,
     )
 
     include_secondary = st.checkbox(
         "Include secondary categories",
-        value=True,
+        value=default_include_secondary,
+        disabled=disabled,
         help="Turn off to only retrieve results based on the primary category",
     )
 
@@ -726,43 +1005,93 @@ def render_filter_controls(
     )
 
 
-def render_vector_controls(strategy: str) -> list[VectorQuerySpec]:
+def render_vector_controls(
+    strategy: str,
+    default_specs: list[dict[str, Any]] | None = None,
+    disabled: bool = False,
+) -> list[VectorQuerySpec]:
     if strategy == "Exact metadata fetch":
         return []
 
     st.subheader("Vector Search")
+    default_specs = default_specs or []
+    key_namespace = "public_" if disabled else ""
     if strategy == "Single vector query":
+        default_spec = default_specs[0] if default_specs else {}
         with st.container(border=True):
-            query = st.text_input("Query", placeholder="Example: Changes in Management, AI Agent development opportunities")
-            return [_render_vector_spec(query=query, key_prefix="single")]
+            query = st.text_input(
+                "Query",
+                value=default_spec.get("query") or "",
+                placeholder="Example: Changes in Management, AI Agent development opportunities",
+                disabled=disabled,
+                key=f"{key_namespace}single_query",
+            )
+            return [
+                _render_vector_spec(
+                    query=query,
+                    key_prefix=f"{key_namespace}single",
+                    default_fields=default_spec.get("enrichment_fields"),
+                    default_include_chunks=bool(default_spec.get("include_chunk_embeddings")),
+                    disabled=disabled,
+                )
+            ]
 
     st.caption("Each query can target different enrichment fields and chunk embeddings.")
-    spec_count = st.number_input("Query count", min_value=2, max_value=5, value=2, step=1)
+    spec_count = st.number_input(
+        "Query count",
+        min_value=2,
+        max_value=5,
+        value=max(2, len(default_specs) or 2),
+        step=1,
+        disabled=disabled,
+        key=f"{key_namespace}query_count",
+    )
     specs = []
     for idx in range(int(spec_count)):
+        default_spec = default_specs[idx] if idx < len(default_specs) else {}
         with st.container(border=True):
             st.markdown(f"**Query {idx + 1}**")
             query = st.text_input(
                 "Query text",
-                key=f"multi_query_{idx}",
+                value=default_spec.get("query") or "",
+                key=f"{key_namespace}multi_query_{idx}",
                 placeholder="Example: New business developments",
+                disabled=disabled,
             )
-            specs.append(_render_vector_spec(query=query, key_prefix=f"multi_{idx}"))
+            specs.append(
+                _render_vector_spec(
+                    query=query,
+                    key_prefix=f"{key_namespace}multi_{idx}",
+                    default_fields=default_spec.get("enrichment_fields"),
+                    default_include_chunks=bool(default_spec.get("include_chunk_embeddings")),
+                    disabled=disabled,
+                )
+            )
     return specs
 
 
-def _render_vector_spec(query: str, key_prefix: str) -> VectorQuerySpec:
+def _render_vector_spec(
+    query: str,
+    key_prefix: str,
+    default_fields: list[str] | None = None,
+    default_include_chunks: bool = False,
+    disabled: bool = False,
+) -> VectorQuerySpec:
+    field_options = list(ENRICHMENT_FIELD_OPTIONS.keys())
+    default_field_values = default_fields if default_fields is not None else field_options
     fields = st.multiselect(
         "LLM1 vector fields",
-        list(ENRICHMENT_FIELD_OPTIONS.keys()),
-        default=list(ENRICHMENT_FIELD_OPTIONS.keys()),
+        field_options,
+        default=[field for field in default_field_values if field in field_options],
         format_func=lambda value: ENRICHMENT_FIELD_OPTIONS[value],
         key=f"{key_prefix}_fields",
+        disabled=disabled,
     )
     include_chunks = st.checkbox(
         "Search by Raw Text Embeddings",
-        value=False,
+        value=default_include_chunks,
         key=f"{key_prefix}_chunks",
+        disabled=disabled,
     )
 
     chunk_scopes = CHUNK_SCOPE_OPTIONS
@@ -857,6 +1186,7 @@ def render_workspace(
     financials = st.session_state.get("financials", [])
     patents = st.session_state.get("patents", [])
     trademarks = st.session_state.get("trademarks", [])
+    public_demo_active = bool(st.session_state.get("public_demo_active"))
 
     include_secondary_categories = st.session_state.get(
         "retrieval_include_secondary_categories",
@@ -903,13 +1233,22 @@ def render_workspace(
                 accepted_row_keys=accepted_row_keys,
             )
         with tab_company_info:
-            render_company_info(related_companies, related_persons)
+            if public_demo_active:
+                render_public_demo_unavailable_context("Company structure")
+            else:
+                render_company_info(related_companies, related_persons)
         with tab_financials:
-            render_financial_context_preview(financials)
+            if public_demo_active:
+                render_public_demo_unavailable_context("Financial metrics")
+            else:
+                render_financial_context_preview(financials)
         with tab_patents:
-            render_patent_context(patents)
-            st.divider()
-            render_trademark_context(trademarks)
+            if public_demo_active:
+                render_public_demo_unavailable_context("Patents and trademarks")
+            else:
+                render_patent_context(patents)
+                st.divider()
+                render_trademark_context(trademarks)
         return
 
     if tab_overview.open:
@@ -941,17 +1280,33 @@ def render_workspace(
 
     if tab_company_info.open:
         with tab_company_info:
-            render_company_info(related_companies, related_persons)
+            if public_demo_active:
+                render_public_demo_unavailable_context("Company structure")
+            else:
+                render_company_info(related_companies, related_persons)
 
     if tab_financials.open:
         with tab_financials:
-            render_financial_context_preview(financials)
+            if public_demo_active:
+                render_public_demo_unavailable_context("Financial metrics")
+            else:
+                render_financial_context_preview(financials)
 
     if tab_patents.open:
         with tab_patents:
-            render_patent_context(patents)
-            st.divider()
-            render_trademark_context(trademarks)
+            if public_demo_active:
+                render_public_demo_unavailable_context("Patents and trademarks")
+            else:
+                render_patent_context(patents)
+                st.divider()
+                render_trademark_context(trademarks)
+
+
+def render_public_demo_unavailable_context(section_name: str) -> None:
+    st.info(
+        f"{section_name} data is unavailable in the public demo. "
+        "Sign in to the full app to access live context retrieval."
+    )
 
 
 
