@@ -96,17 +96,17 @@ PUBLIC_DEMO_PRESETS: list[dict[str, Any]] = [
     _exact_company_preset("Raiffeisen"),
     _single_vector_preset(
         preset_id="all-companies-high-level-staff-vector",
-        label='All companies - "Changes in High Level Staff"',
+        label='"Changes in High Level Staff" - all companies',
         query="Changes in High Level Staff",
     ),
     _single_vector_preset(
         preset_id="all-companies-ai-investment-vector",
-        label='All companies - "Investment and Developments in AI"',
+        label='"Investment and Developments in AI" - all companies',
         query="Investment and Developments in AI",
     ),
     {
         "id": "all-companies-structural-change-opportunity-multi-vector",
-        "label": "All companies - structural change + strong opportunity",
+        "label": '"significant structural change" + "strong opportunity" - all companies',
         "companies": PRESET_COMPANIES,
         "categories": PRESET_CATEGORIES,
         "use_unbounded_scope": True,

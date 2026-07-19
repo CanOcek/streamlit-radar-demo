@@ -169,6 +169,16 @@ def inject_dashboard_styles() -> None:
         div[data-baseweb="select"] input {
             caret-color: transparent !important;
         }
+
+        .public-login-divider {
+            border-top: 1px solid rgba(255,255,255,0.18);
+            height: 1px;
+            margin: 0.35rem 0 0.3rem;
+        }
+
+        .public-login-divider-bottom {
+            margin: 0.3rem 0 0.35rem;
+        }
         
         .insight-card {
              border: 1px solid rgba(255,255,255,0.10);
@@ -430,7 +440,7 @@ def main() -> None:
                 line-height: 1.5;
                 max-width: 950px;
             ">
-                A business development radar for spotting relevant signals, opportunity areas, and risks across public company data.
+                Spot relevant signals, opportunity areas, and risks across patterns in company data.
             </div>
         </div>
         """,
@@ -617,7 +627,7 @@ def render_public_demo_app() -> None:
                 line-height: 1.5;
                 max-width: 950px;
             ">
-                A business development radar for spotting relevant signals, opportunity areas, and risks across public company data.
+                Spot relevant signals, opportunity areas, and risks across patterns in company data.
             </div>
         </div>
         """,
@@ -630,8 +640,6 @@ def render_public_demo_app() -> None:
     with st.sidebar:
         render_sidebar_branding()
         selected_preset = render_public_demo_selector(presets)
-
-        st.divider()
 
         st.markdown('<div class="sidebar-section-label">Scope</div>', unsafe_allow_html=True)
         scope_companies, scope_categories = render_scope_controls(
@@ -770,7 +778,7 @@ def render_public_demo_app() -> None:
 
 
 def render_public_demo_selector(presets: list[dict[str, Any]]) -> dict[str, Any]:
-    st.markdown('<div class="sidebar-section-label">Public demo preset</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section-label">Public Demo</div>', unsafe_allow_html=True)
     preset_ids = [preset["id"] for preset in presets]
     current_id = st.session_state.get("public_demo_preset_id") or preset_ids[0]
     if current_id not in preset_ids:
@@ -784,8 +792,18 @@ def render_public_demo_selector(presets: list[dict[str, Any]]) -> dict[str, Any]
         key="public_demo_preset_id",
     )
 
-    if st.button("Sign in to full app", use_container_width=True):
-        render_login_dialog()
+    _, sign_in_col, _ = st.columns([0.5, 2.5, 0.5])
+    with sign_in_col:
+        if st.button(
+            "Sign in to full app",
+            type="primary",
+            use_container_width=False,
+        ):
+            render_login_dialog()
+    st.markdown(
+        '<div class="public-login-divider public-login-divider-bottom"></div>',
+        unsafe_allow_html=True,
+    )
 
     if st.session_state.get("last_public_demo_preset_id") != selected_id:
         st.session_state["last_public_demo_preset_id"] = selected_id
@@ -828,7 +846,9 @@ def render_login_dialog() -> None:
 
     with st.form("login_dialog"):
         password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Enter")
+        submitted = st.form_submit_button("Enter", type="primary")
+
+    st.button("Contact for a password", type="primary", disabled=True)
 
     if submitted:
         if password == app_password:
